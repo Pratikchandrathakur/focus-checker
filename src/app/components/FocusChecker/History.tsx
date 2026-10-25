@@ -77,12 +77,12 @@ export function History({ history, onClearHistory }: HistoryProps) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
+    <div className="w-full max-w-4xl mx-auto space-y-3.5 sm:space-y-4">
       
       {/* Top Filter and Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl max-w-full overflow-x-auto">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl max-w-full overflow-x-auto">
           {[
             { id: 'all' as const, label: 'All Activity' },
             { id: 'sessions' as const, label: 'Focus Sessions' },
@@ -92,7 +92,7 @@ export function History({ history, onClearHistory }: HistoryProps) {
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 filter === tab.id
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
@@ -104,35 +104,35 @@ export function History({ history, onClearHistory }: HistoryProps) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           {history.length > 0 && (
             <>
               <button
                 onClick={handleExportJSON}
-                className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5"
+                className="px-2.5 py-1 rounded-lg clay-button text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1"
                 title="Export journal"
               >
-                <Download size={14} /> JSON
+                <Download size={13} /> JSON
               </button>
               <button
                 onClick={handleExportCSV}
-                className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5"
+                className="px-2.5 py-1 rounded-lg clay-button text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1"
                 title="Export journal as CSV (opens in Excel / Sheets)"
               >
-                <Download size={14} /> CSV
+                <Download size={13} /> CSV
               </button>
 
               {confirmClear ? (
                 <>
                   <button
                     onClick={() => { onClearHistory(); setConfirmClear(false); }}
-                    className="px-3 py-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1.5"
+                    className="px-2.5 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1"
                   >
-                    <Trash2 size={14} /> Delete all
+                    <Trash2 size={13} /> Delete all
                   </button>
                   <button
                     onClick={() => setConfirmClear(false)}
-                    className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-slate-600 dark:text-slate-300"
+                    className="px-2.5 py-1 rounded-lg clay-button text-xs font-semibold text-slate-600 dark:text-slate-300"
                   >
                     Cancel
                   </button>
@@ -140,10 +140,10 @@ export function History({ history, onClearHistory }: HistoryProps) {
               ) : (
                 <button
                   onClick={() => setConfirmClear(true)}
-                  className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-red-500 flex items-center gap-1.5"
+                  className="px-2.5 py-1 rounded-lg clay-button text-xs font-semibold text-red-500 flex items-center gap-1"
                   title="Clear journal"
                 >
-                  <Trash2 size={14} /> Clear
+                  <Trash2 size={13} /> Clear
                 </button>
               )}
             </>
@@ -152,16 +152,16 @@ export function History({ history, onClearHistory }: HistoryProps) {
       </div>
 
       {/* Journal List */}
-      <div className="clay-card p-6 md:p-8 space-y-3">
+      <div className="clay-card p-3.5 sm:p-4.5 space-y-2">
         {filtered.length === 0 ? (
-          <div className="py-16 text-center space-y-3">
-            <div className="w-16 h-16 rounded-full clay-card-subtle flex items-center justify-center mx-auto text-slate-400">
-              <Brain size={28} />
+          <div className="py-8 text-center space-y-2">
+            <div className="w-12 h-12 rounded-full clay-card-subtle flex items-center justify-center mx-auto text-slate-400">
+              <Brain size={22} />
             </div>
-            <h4 className="font-bold text-base text-slate-800 dark:text-slate-200">
+            <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
               Nothing logged yet
             </h4>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
               Finish a focus block, take a readiness check or do a 2-minute breathing reset and it will show up here.
             </p>
           </div>
@@ -172,16 +172,16 @@ export function History({ history, onClearHistory }: HistoryProps) {
             return (
               <div
                 key={item.id}
-                className="clay-card-subtle p-4 transition-all duration-200 overflow-hidden"
+                className="clay-card-subtle p-3 transition-all duration-200 overflow-hidden rounded-xl"
               >
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : item.id)}
                   className="flex items-center justify-between cursor-pointer"
                 >
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex items-center gap-2.5">
                     {/* Item icon badge */}
                     <div
-                      className={`p-2.5 rounded-2xl flex items-center justify-center ${
+                      className={`p-2 rounded-xl flex items-center justify-center ${
                         item.type === 'Session'
                           ? 'bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400'
                           : item.type === 'StressReset'
@@ -190,21 +190,21 @@ export function History({ history, onClearHistory }: HistoryProps) {
                       }`}
                     >
                       {item.type === 'Session' ? (
-                        <Zap size={18} />
+                        <Zap size={16} />
                       ) : item.type === 'StressReset' ? (
-                        <Wind size={18} />
+                        <Wind size={16} />
                       ) : (
-                        <Activity size={18} />
+                        <Activity size={16} />
                       )}
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
                         {item.note || item.type}
                       </h4>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
                         <span className="flex items-center gap-1">
-                          <Calendar size={12} />
+                          <Calendar size={11} />
                           {format(new Date(item.date), 'MMM d, h:mm a')}
                         </span>
                         <span>•</span>
@@ -216,9 +216,9 @@ export function History({ history, onClearHistory }: HistoryProps) {
                   </div>
 
                   {/* Score pill */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold font-mono ${
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold font-mono ${
                         item.score >= 75
                           ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
                           : 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
@@ -227,7 +227,7 @@ export function History({ history, onClearHistory }: HistoryProps) {
                       {item.score}%
                     </span>
                     <ChevronDown
-                      size={16}
+                      size={15}
                       className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                     />
                   </div>

@@ -151,39 +151,39 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
   // STEP 1: Physiological Context
   if (step === 'context') {
     return (
-      <div className="w-full max-w-2xl mx-auto space-y-6">
-        <div className="clay-card p-6 md:p-8 space-y-6">
+      <div className="w-full max-w-xl mx-auto">
+        <div className="clay-card p-3.5 sm:p-4.5 space-y-3">
           
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
-              <Compass size={22} />
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+              <Compass size={18} />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">
+              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
                 Readiness Diagnostic
               </h3>
-              <p className="text-xs text-slate-500">Step 1 of 2 — Autonomic & Environmental State</p>
+              <p className="text-[10px] text-slate-500">Step 1 of 2 — Autonomic & Environmental State</p>
             </div>
           </div>
 
           {/* Emotional State Grid (state badges) */}
-          <div className="space-y-2.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Current Autonomic State
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {EMOTIONAL_STATES.map((es) => (
                 <button
                   key={es.value}
                   onClick={() => setEmotionalState(es.value)}
-                  className={`p-3 rounded-2xl text-left transition-all border ${
+                  className={`p-1.5 sm:p-2 rounded-xl text-left transition-all border ${
                     emotionalState === es.value
                       ? 'clay-tile-cyan'
                       : 'clay-button text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  <div className="font-semibold text-xs capitalize">{es.label}</div>
-                  <div className={`text-[10px] mt-0.5 ${emotionalState === es.value ? 'text-white/80' : 'text-slate-400'}`}>
+                  <div className="font-semibold text-[11px] sm:text-xs capitalize leading-tight">{es.label}</div>
+                  <div className={`text-[9px] truncate mt-0.5 ${emotionalState === es.value ? 'text-white/80' : 'text-slate-400'}`}>
                     {es.sub}
                   </div>
                 </button>
@@ -192,23 +192,23 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
           </div>
 
           {/* Day Flow */}
-          <div className="space-y-2.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Day Rhythm & Tempo
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {DAY_FLOWS.map((df) => (
                 <button
                   key={df.value}
                   onClick={() => setDayFlow(df.value)}
-                  className={`p-3 rounded-2xl text-left transition-all border ${
+                  className={`p-1.5 sm:p-2 rounded-xl text-left transition-all border ${
                     dayFlow === df.value
                       ? 'clay-tile-amber'
                       : 'clay-button text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  <div className="font-semibold text-xs capitalize">{df.label}</div>
-                  <div className={`text-[10px] mt-0.5 ${dayFlow === df.value ? 'text-white/80' : 'text-slate-400'}`}>
+                  <div className="font-semibold text-[11px] sm:text-xs capitalize leading-tight">{df.label}</div>
+                  <div className={`text-[9px] truncate mt-0.5 ${dayFlow === df.value ? 'text-white/80' : 'text-slate-400'}`}>
                     {df.sub}
                   </div>
                 </button>
@@ -217,12 +217,12 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
           </div>
 
           {/* Sleep Hours Slider */}
-          <div className="clay-card-subtle p-4 space-y-2">
+          <div className="clay-card-subtle p-2 sm:p-2.5 rounded-xl space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Moon size={14} className="text-indigo-500" /> Sleep Duration Last Night
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Moon size={13} className="text-indigo-500" /> Sleep Duration Last Night
               </span>
-              <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-full">
                 {sleepHours} Hours
               </span>
             </div>
@@ -233,10 +233,10 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
               step="0.5"
               value={sleepHours}
               onChange={(e) => setSleepHours(Number(e.target.value))}
-              className="w-full accent-sky-500 cursor-pointer"
+              className="w-full accent-sky-500 cursor-pointer h-1.5"
             />
-            <div className="flex justify-between text-[10px] text-slate-400">
-              <span>Severe Deficit (3h)</span>
+            <div className="flex justify-between text-[9px] text-slate-400">
+              <span>Deficit (3h)</span>
               <span>Optimal (7-8.5h)</span>
               <span>Extended (12h)</span>
             </div>
@@ -244,9 +244,9 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
 
           <button
             onClick={handleContextNext}
-            className="w-full py-4 rounded-2xl clay-tile-cyan font-bold text-sm flex items-center justify-center gap-2 shadow-lg"
+            className="w-full py-2.5 sm:py-3 rounded-xl clay-tile-cyan font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md"
           >
-            Continue to Focus Dimensions <ArrowRight size={18} />
+            Continue to Focus Dimensions <ArrowRight size={16} />
           </button>
         </div>
       </div>
@@ -256,47 +256,47 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
   // STEP 2: Focus Sliders
   if (step === 'sliders') {
     return (
-      <div className="w-full max-w-2xl mx-auto space-y-6">
-        <div className="clay-card p-6 md:p-8 space-y-6">
+      <div className="w-full max-w-xl mx-auto">
+        <div className="clay-card p-3.5 sm:p-4.5 space-y-3">
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                <Target size={22} />
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                <Target size={18} />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
                   Cognitive Assessment
                 </h3>
-                <p className="text-xs text-slate-500">Step 2 of 2 — Rate your current mental capacity</p>
+                <p className="text-[10px] text-slate-500">Step 2 of 2 — Rate your current mental capacity</p>
               </div>
             </div>
 
             <div className="text-right">
-              <div className="text-xs text-slate-400">Live Score</div>
-              <div className={`text-xl font-extrabold ${currentScore >= 70 ? 'text-emerald-500' : 'text-amber-500'}`}>
+              <div className="text-[10px] text-slate-400">Live Score</div>
+              <div className={`text-lg sm:text-xl font-extrabold font-mono ${currentScore >= 70 ? 'text-emerald-500' : 'text-amber-500'}`}>
                 {currentScore}%
               </div>
             </div>
           </div>
 
           {/* Slider list */}
-          <div className="space-y-5">
+          <div className="space-y-2">
             {sliderFields.map((field) => {
               const Icon = field.icon;
               const val = answers[field.key];
 
               return (
-                <div key={field.key} className="clay-card-subtle p-4 space-y-2">
+                <div key={field.key} className="clay-card-subtle p-2 sm:p-2.5 rounded-xl space-y-1">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Icon size={16} className="text-sky-500" />
-                      <div>
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">{field.label}</div>
-                        <div className="text-[10px] text-slate-400">{field.desc}</div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon size={14} className="text-sky-500 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{field.label}</div>
+                        <div className="text-[9px] text-slate-400 truncate">{field.desc}</div>
                       </div>
                     </div>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 shadow-sm">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 shadow-sm shrink-0">
                       {val}/10
                     </span>
                   </div>
@@ -307,25 +307,25 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
                     max="10"
                     value={val}
                     onChange={(e) => setAnswers({ ...answers, [field.key]: Number(e.target.value) })}
-                    className="w-full accent-sky-500 cursor-pointer"
+                    className="w-full accent-sky-500 cursor-pointer h-1.5"
                   />
                 </div>
               );
             })}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2.5 pt-1">
             <button
               onClick={() => setStep('context')}
-              className="py-3.5 px-6 rounded-2xl clay-button text-xs font-semibold text-slate-600"
+              className="py-2.5 px-4 rounded-xl clay-button text-xs font-semibold text-slate-600"
             >
               Back
             </button>
             <button
               onClick={handleSlidersSubmit}
-              className="flex-1 py-3.5 rounded-2xl clay-tile-cyan font-bold text-sm flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 rounded-xl clay-tile-cyan font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md"
             >
-              Compute Action Plan <CheckCircle size={18} />
+              Compute Action Plan <CheckCircle size={16} />
             </button>
           </div>
         </div>
@@ -335,54 +335,54 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
 
   // STEP 3: Results & Action Recommendation
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6">
-      <div className="clay-card p-6 md:p-8 space-y-6">
+    <div className="w-full max-w-xl mx-auto">
+      <div className="clay-card p-3.5 sm:p-4.5 space-y-3">
         
         {/* Metric gauge */}
-        <div className="text-center py-4">
-          <div className="w-28 h-28 rounded-full clay-dial-rim flex flex-col items-center justify-center mx-auto mb-3 shadow-xl">
-            <span className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono">
+        <div className="text-center py-2">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full clay-dial-rim flex flex-col items-center justify-center mx-auto mb-2 shadow-lg">
+            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-mono leading-none">
               {result?.score}%
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
               Readiness
             </span>
           </div>
 
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+          <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
             {result?.score && result.score >= 70 ? 'Primed for Deep Work' : 'Regulate Before Forcing Focus'}
           </h3>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-[10px] text-slate-500 mt-0.5">
             State: {emotionalState} • Sleep: {sleepHours}h • Tempo: {dayFlow}
           </p>
         </div>
 
         {/* Actionable recommendation card */}
-        <div className="clay-card-subtle p-5 space-y-3 border-l-4 border-l-sky-500">
-          <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-xs uppercase tracking-wider">
-            <Lightbulb size={16} /> Suggestion
+        <div className="clay-card-subtle p-3 rounded-xl space-y-1.5 border-l-4 border-l-sky-500">
+          <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400 font-bold text-[11px] uppercase tracking-wider">
+            <Lightbulb size={14} /> Suggestion
           </div>
-          <p className="text-xs md:text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
+          <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
             {result?.recommendation.text}
           </p>
         </div>
 
         {/* Action Button based on recommendation */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
           {result?.recommendation.actionType === 'sigh' && onOpenStressReset && (
             <button
               onClick={onOpenStressReset}
-              className="flex-1 py-4 rounded-2xl clay-tile-emerald font-bold text-sm flex items-center justify-center gap-2 shadow-lg"
+              className="flex-1 py-2.5 sm:py-3 rounded-xl clay-tile-emerald font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md"
             >
-              <Wind size={18} /> Launch 2-Minute Stress Reset
+              <Wind size={16} /> Launch 2-Minute Stress Reset
             </button>
           )}
 
           <button
             onClick={handleSaveAndProceed}
-            className="flex-1 py-4 rounded-2xl clay-tile-cyan font-bold text-sm flex items-center justify-center gap-2 shadow-lg"
+            className="flex-1 py-2.5 sm:py-3 rounded-xl clay-tile-cyan font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md"
           >
-            <Zap size={18} /> Save & Enter Focus Suite
+            <Zap size={16} /> Save & Enter Focus Suite
           </button>
         </div>
       </div>

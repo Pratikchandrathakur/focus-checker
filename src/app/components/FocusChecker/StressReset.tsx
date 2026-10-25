@@ -169,47 +169,47 @@ export function StressReset({ onComplete, onClose }: StressResetProps) {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto">
-      <div className="clay-card p-6 md:p-8 relative overflow-hidden">
+    <div className="w-full max-w-md mx-auto">
+      <div className="clay-card p-3.5 sm:p-4 lg:p-4 relative">
         
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
-              <Wind size={20} />
+        <div className="flex items-center justify-between mb-2.5 sm:mb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+              <Wind size={18} />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 dark:text-white leading-tight">
+              <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
                 Stress De-escalation
               </h3>
-              <p className="text-xs text-slate-500">Neuroscience autonomic reset</p>
+              <p className="text-[10px] text-slate-500">Neuroscience autonomic reset</p>
             </div>
           </div>
 
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-2 rounded-xl clay-button text-slate-600 dark:text-slate-300"
+            className="p-1.5 rounded-xl clay-button text-slate-600 dark:text-slate-300"
             title="Toggle chime tones"
           >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
         </div>
 
         {/* Technique Switcher Tabs */}
-        <div className="grid grid-cols-2 gap-2 mb-6">
+        <div className="grid grid-cols-2 gap-2 mb-2.5 sm:mb-3">
           <button
             onClick={() => {
               setTechnique('physiological-sigh');
               handleReset();
             }}
-            className={`p-3 rounded-2xl text-xs font-semibold transition-all ${
+            className={`p-2 sm:p-2.5 rounded-xl text-xs font-semibold transition-all ${
               technique === 'physiological-sigh'
                 ? 'clay-tile-emerald'
                 : 'clay-button text-slate-600 dark:text-slate-300'
             }`}
           >
             Physiological Sigh
-            <span className="block text-[10px] font-normal opacity-80 mt-0.5">Two inhales, long exhale</span>
+            <span className="block text-[9px] font-normal opacity-85 mt-0.5">Two inhales, long exhale</span>
           </button>
 
           <button
@@ -217,22 +217,22 @@ export function StressReset({ onComplete, onClose }: StressResetProps) {
               setTechnique('box-breathing');
               handleReset();
             }}
-            className={`p-3 rounded-2xl text-xs font-semibold transition-all ${
+            className={`p-2 sm:p-2.5 rounded-xl text-xs font-semibold transition-all ${
               technique === 'box-breathing'
                 ? 'clay-tile-cyan'
                 : 'clay-button text-slate-600 dark:text-slate-300'
             }`}
           >
             Box Breathing
-            <span className="block text-[10px] font-normal opacity-80 mt-0.5">Equal 4-second phases</span>
+            <span className="block text-[9px] font-normal opacity-85 mt-0.5">Equal 4-second phases</span>
           </button>
         </div>
 
         {/* Central Breathing Orb */}
-        <div className="relative py-12 flex flex-col items-center justify-center">
+        <div className="relative py-2 sm:py-3.5 flex flex-col items-center justify-center">
           
           {/* Animated concentric ripples */}
-          <div className="relative w-64 h-64 flex items-center justify-center">
+          <div className="relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center">
             
             {/* Ambient pulse ring */}
             <motion.div
@@ -250,17 +250,17 @@ export function StressReset({ onComplete, onClose }: StressResetProps) {
                 scale: getOrbScale(),
               }}
               transition={{ duration: phase === 'exhale' ? 6 : 2.5, ease: 'easeInOut' }}
-              className="w-48 h-48 rounded-full clay-dial-rim flex flex-col items-center justify-center text-center p-4 z-10 select-none shadow-2xl"
+              className="w-34 h-34 sm:w-38 sm:h-38 rounded-full clay-dial-rim flex flex-col items-center justify-center text-center p-3 z-10 select-none shadow-xl"
             >
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-0.5">
                 {getPhaseInstruction()}
               </span>
 
-              <div className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono">
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-mono leading-none">
                 {isActive ? `${phaseTimeLeft}s` : 'START'}
               </div>
 
-              <span className="text-xs text-slate-400 mt-1">
+              <span className="text-[10px] text-slate-400 mt-0.5">
                 Cycle {cyclesCompleted}/5
               </span>
             </motion.div>
@@ -268,34 +268,34 @@ export function StressReset({ onComplete, onClose }: StressResetProps) {
         </div>
 
         {/* Science Tip Pill */}
-        <div className="clay-card-subtle p-3.5 mb-6 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+        <div className="clay-card-subtle p-2.5 mb-2.5 sm:mb-3 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
           <span className="font-semibold text-emerald-600 dark:text-emerald-400">Why it works: </span>
           {technique === 'physiological-sigh'
-            ? 'A double inhale followed by a long, slow exhale. Studies of slow breathing with extended exhales suggest it can help people feel calmer within a few minutes.'
-            : 'Inhale, hold, exhale and hold for 4 seconds each. The steady rhythm gives your attention something simple to follow.'}
+            ? 'A double inhale followed by a slow exhale helps activate the parasympathetic nervous system.'
+            : 'Equal 4-second phases provide steady cognitive rhythm and heart-rate coherence.'}
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-2.5">
           <button
             onClick={handleReset}
-            className="w-12 h-12 rounded-2xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300"
             title="Reset"
           >
-            <RotateCcw size={18} />
+            <RotateCcw size={15} />
           </button>
 
           <button
             onClick={isActive ? handlePause : handleStart}
-            className="flex-1 py-3.5 rounded-2xl clay-tile-emerald flex items-center justify-center gap-2 font-semibold text-sm shadow-lg"
+            className="flex-1 py-2.5 sm:py-3 rounded-xl clay-tile-emerald flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm shadow-md"
           >
             {isActive ? (
               <>
-                <Pause size={18} /> Pause Breathwork
+                <Pause size={16} /> Pause Breathwork
               </>
             ) : (
               <>
-                <Play size={18} fill="currentColor" /> Begin De-escalation
+                <Play size={16} fill="currentColor" /> Begin De-escalation
               </>
             )}
           </button>
@@ -303,10 +303,10 @@ export function StressReset({ onComplete, onClose }: StressResetProps) {
           {cyclesCompleted >= 2 && (
             <button
               onClick={() => setIsFinished(true)}
-              className="w-12 h-12 rounded-2xl clay-button text-emerald-600 flex items-center justify-center"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl clay-button text-emerald-600 flex items-center justify-center"
               title="Log outcome"
             >
-              <CheckCircle2 size={20} />
+              <CheckCircle2 size={17} />
             </button>
           )}
         </div>
