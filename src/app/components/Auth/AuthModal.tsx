@@ -18,12 +18,14 @@ const MIN_PASSWORD = 8;
 
 function friendlyError(msg: string) {
   const m = msg.toLowerCase();
-  if (m.includes('invalid login')) return 'Email or password is incorrect.';
+  if (m.includes('invalid login') || m.includes('invalid credentials')) return 'Email or password is incorrect.';
   if (m.includes('email not confirmed')) return 'Please confirm your email first — check your inbox for the link.';
-  if (m.includes('already registered')) return 'An account with this email already exists. Try signing in.';
-  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts. Please wait a minute and try again.';
+  if (m.includes('already registered') || m.includes('user already exists')) return 'An account with this email already exists. Try signing in.';
+  if (m.includes('rate limit') || m.includes('over_email_send_rate_limit')) {
+    return 'Email rate limit exceeded on Supabase. Disable "Confirm email" in Supabase Auth settings for instant sign up without email verification.';
+  }
   if (m.includes('password')) return msg;
-  return 'Something went wrong. Check your connection and try again.';
+  return msg || 'Authentication error. Please try again.';
 }
 
 export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login' }: AuthModalProps) {

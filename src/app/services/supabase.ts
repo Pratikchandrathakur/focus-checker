@@ -3,20 +3,27 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { HistoryItem, UserProfile } from '../types';
 
-const url = (import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL) as string | undefined;
+// Default production public credentials (safe for client side with RLS enabled)
+const DEFAULT_SUPABASE_URL = 'https://cjxmuqejdnljhkdppgpx.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_8l6vDGKbXKagijtmJUYBhg_imPJR_-g';
+
+const url = (
+  import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.SUPABASE_URL ||
+  DEFAULT_SUPABASE_URL
+) as string;
+
 const anonKey = (
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.SUPABASE_ANON_KEY
-) as string | undefined;
+  import.meta.env.SUPABASE_ANON_KEY ||
+  DEFAULT_SUPABASE_ANON_KEY
+) as string;
 
-export const supabase: SupabaseClient | null =
-  url && anonKey
-    ? createClient(url, anonKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
-      })
-    : null;
+export const supabase: SupabaseClient = createClient(url, anonKey, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
+});
 
 export const cloudEnabled = Boolean(supabase);
 
