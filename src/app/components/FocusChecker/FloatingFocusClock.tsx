@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Play, 
   Pause, 
@@ -7,12 +7,12 @@ import {
   Maximize2, 
   Minimize2, 
   Fingerprint, 
-  X,
-  Volume2,
-  VolumeX,
-  GripHorizontal,
-  Square,
-  PictureInPicture2
+  X, 
+  Volume2, 
+  VolumeX, 
+  GripHorizontal, 
+  Square, 
+  PictureInPicture2 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFocusTimer } from '../../context/FocusTimerContext';
@@ -57,72 +57,57 @@ export function FloatingFocusClock({
       const w = window.innerWidth;
       const h = window.innerHeight;
       return {
-        x: Math.max(16, w - 320),
-        y: Math.max(16, h - 230),
+        x: Math.max(16, w - 310),
+        y: Math.max(16, h - 220),
       };
     }
     return { x: 40, y: 40 };
-  });
-
-  const isDraggingRef = useRef<boolean>(false);
-  const dragStartRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number }>({
-    startX: 0,
-    startY: 0,
-    initialX: 0,
-    initialY: 0,
   });
 
   // Track window resize to ensure widget stays inside viewport
   useEffect(() => {
     const handleResize = () => {
       setPosition((prev) => ({
-        x: Math.max(12, Math.min(window.innerWidth - 280, prev.x)),
-        y: Math.max(12, Math.min(window.innerHeight - 180, prev.y)),
+        x: Math.max(8, Math.min(window.innerWidth - 290, prev.x)),
+        y: Math.max(8, Math.min(window.innerHeight - 190, prev.y)),
       }));
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Pointer Down (Mouse or Touch) for Dragging
+  // Universal Window-level Pointer Dragging (Works on touch + mouse across all screens)
   const handlePointerDown = (e: React.PointerEvent) => {
-    // Only drag with left mouse or touch
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
-    // Don't drag if clicking buttons or interactive elements
     if (target.closest('button') || target.closest('input')) return;
 
-    isDraggingRef.current = true;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragStartRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      initialX: position.x,
-      initialY: position.y,
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initX = position.x;
+    const initY = position.y;
+
+    const onPointerMove = (moveEv: PointerEvent) => {
+      const dx = moveEv.clientX - startX;
+      const dy = moveEv.clientY - startY;
+      const widgetWidth = isMinimized ? 220 : 300;
+      const widgetHeight = isMinimized ? 55 : 210;
+
+      const newX = Math.max(8, Math.min(window.innerWidth - widgetWidth - 8, initX + dx));
+      const newY = Math.max(8, Math.min(window.innerHeight - widgetHeight - 8, initY + dy));
+      setPosition({ x: newX, y: newY });
     };
-  };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDraggingRef.current) return;
-    const dx = e.clientX - dragStartRef.current.startX;
-    const dy = e.clientY - dragStartRef.current.startY;
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
 
-    const widgetWidth = isMinimized ? 220 : 300;
-    const widgetHeight = isMinimized ? 60 : 210;
-
-    const newX = Math.max(10, Math.min(window.innerWidth - widgetWidth - 10, dragStartRef.current.initialX + dx));
-    const newY = Math.max(10, Math.min(window.innerHeight - widgetHeight - 10, dragStartRef.current.initialY + dy));
-
-    setPosition({ x: newX, y: newY });
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (isDraggingRef.current) {
-      isDraggingRef.current = false;
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {}
-    }
+    window.addEventListener('pointermove', onPointerMove, { passive: false });
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
   };
 
   // Picture-in-Picture trigger
@@ -130,7 +115,7 @@ export function FloatingFocusClock({
     if (pipService.isPiPActive()) {
       await pipService.exitPiP();
       setIsPiPActive(false);
-      toast.info("Picture-in-Picture closed");
+      toast.info("Picture-in-Picture window closed");
     } else {
       const started = await pipService.requestCanvasPiP(
         () => formattedTime,
@@ -140,9 +125,9 @@ export function FloatingFocusClock({
       );
       if (started) {
         setIsPiPActive(true);
-        toast.success("Picture-in-Picture activated — floating on top of all windows!");
+        toast.success("Picture-in-Picture floating on top of screen!");
       } else {
-        toast.error("Could not launch PiP on this browser");
+        toast.info("Browser Picture-in-Picture blocked or unsupported. Use the in-browser floating clock widget!");
       }
     }
   };
@@ -164,6 +149,7 @@ export function FloatingFocusClock({
         top: 0,
         left: 0,
         zIndex: 9999,
+        touchAction: 'none',
       }}
       className="select-none will-change-transform"
     >
@@ -173,8 +159,6 @@ export function FloatingFocusClock({
           <motion.div
             key="minimized"
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
             initial={{ scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.85, opacity: 0 }}
@@ -213,8 +197,6 @@ export function FloatingFocusClock({
           <motion.div
             key="expanded"
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
             initial={{ scale: 0.92, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
