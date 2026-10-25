@@ -12,19 +12,22 @@ import {
   Sun, 
   LogIn, 
   LogOut, 
-  Sparkles, 
   Fingerprint, 
   Volume2, 
-  VolumeX, 
-  ChevronRight,
   Menu,
-  X
+  X,
+  Compass
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+// Context
+import { FocusTimerProvider, useFocusTimer } from './context/FocusTimerContext';
 
 // Components
 import { LandingPage } from './components/LandingPage/LandingPage';
 import { TactileFocusDial } from './components/FocusChecker/TactileFocusDial';
+import { EnvironmentHub } from './components/FocusChecker/EnvironmentHub';
+import { FloatingFocusClock } from './components/FocusChecker/FloatingFocusClock';
 import { QuickCheck } from './components/FocusChecker/QuickCheck';
 import { StressReset } from './components/FocusChecker/StressReset';
 import { Soundscapes } from './components/FocusChecker/Soundscapes';
@@ -80,16 +83,38 @@ function loadAuthUser(): UserProfile | null {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'landing' | 'dial' | 'check' | 'stress' | 'sound' | 'dashboard' | 'history'>('dial');
   const [history, setHistory] = useState<HistoryItem[]>(loadHistory);
+
+  const handleSessionComplete = (session: FocusSession) => {
+    setHistory((prev) => [session, ...prev]);
+    toast.success("Focus block recorded in your neural journal");
+  };
+
+  return (
+    <FocusTimerProvider onSessionSaved={handleSessionComplete}>
+      <AppContent history={history} setHistory={setHistory} />
+    </FocusTimerProvider>
+  );
+}
+
+function AppContent({
+  history,
+  setHistory,
+}: {
+  history: HistoryItem[];
+  setHistory: React.Dispatch<React.SetStateAction<HistoryItem[]>>;
+}) {
+  const [activeTab, setActiveTab] = useState<'landing' | 'dial' | 'check' | 'stress' | 'sound' | 'dashboard' | 'history'>('dial');
   const [darkMode, setDarkMode] = useState<boolean>(loadDarkMode);
   const [user, setUser] = useState<UserProfile | null>(loadAuthUser);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authDefaultMode, setAuthDefaultMode] = useState<'login' | 'register'>('login');
   const [activeSoundscape, setActiveSoundscape] = useState<string>('none');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
-  // Sync dark mode class on document element
+  // Mobile sub-tab toggle on Dial view (Phone vs Atmosphere)
+  const [mobileDialView, setMobileDialView] = useState<'dial' | 'atmosphere'>('dial');
+
+  // Sync dark mode class
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -119,11 +144,6 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
     setUser(null);
     toast.info("Logged out successfully");
-  };
-
-  const handleSessionComplete = (session: FocusSession) => {
-    setHistory((prev) => [session, ...prev]);
-    toast.success("Focus block saved to your neural journal");
   };
 
   const handleQuickCheckComplete = (check: ReadinessCheck) => {
@@ -159,12 +179,12 @@ export default function App() {
 
   // Navigation Items
   const navItems = [
-    { id: 'dial' as const, label: 'Focus Dial', icon: Fingerprint, sub: 'Timer & Flow' },
-    { id: 'stress' as const, label: 'De-Stress', icon: Wind, sub: 'Physiological Sigh' },
-    { id: 'check' as const, label: 'Readiness', icon: Target, sub: 'Diagnostic' },
-    { id: 'sound' as const, label: 'Soundscapes', icon: Headphones, sub: '40Hz Gamma & Alpha' },
-    { id: 'dashboard' as const, label: 'Analytics', icon: LayoutDashboard, sub: 'Attention Span' },
-    { id: 'history' as const, label: 'Journal', icon: HistoryIcon, sub: 'Logged History' },
+    { id: 'dial' as const, label: 'Focus Dial', icon: Fingerprint },
+    { id: 'stress' as const, label: 'De-Stress', icon: Wind },
+    { id: 'check' as const, label: 'Readiness', icon: Target },
+    { id: 'sound' as const, label: 'Soundscapes', icon: Headphones },
+    { id: 'dashboard' as const, label: 'Analytics', icon: LayoutDashboard },
+    { id: 'history' as const, label: 'Journal', icon: HistoryIcon },
   ];
 
   return (
@@ -179,7 +199,13 @@ export default function App() {
         defaultMode={authDefaultMode}
       />
 
-      {/* If Landing Page Tab is Active */}
+      {/* Floating Clock Widget (Persistent across all tabs!) */}
+      <FloatingFocusClock
+        onOpenDial={() => setActiveTab('dial')}
+        activeSoundscape={activeSoundscape}
+      />
+
+      {/* Landing Page */}
       {activeTab === 'landing' ? (
         <LandingPage
           onEnterApp={() => setActiveTab('dial')}
@@ -188,11 +214,11 @@ export default function App() {
           onOpenStressReset={() => setActiveTab('stress')}
         />
       ) : (
-        <div className="flex flex-col min-h-screen pb-24 md:pb-10">
+        <div className="flex flex-col min-h-screen pb-24 md:pb-12">
           
-          {/* Top Global App Header */}
+          {/* Top Header */}
           <header className="sticky top-0 z-40 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-white/60 dark:border-slate-800/60 px-4 md:px-8 py-3.5 transition-all">
-            <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
               
               {/* Brand and Landing shortcut */}
               <div className="flex items-center gap-3">
@@ -293,7 +319,7 @@ export default function App() {
           </header>
 
           {/* Main App Content View */}
-          <main className="max-w-6xl mx-auto w-full px-4 md:px-8 py-6 md:py-10">
+          <main className="max-w-7xl mx-auto w-full px-4 md:px-8 py-6 md:py-10">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -302,13 +328,62 @@ export default function App() {
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.22, ease: 'easeOut' }}
               >
+                {/* DIAL TAB: Complete Dual-Screen Desktop Experience & Responsive Phone Layout */}
                 {activeTab === 'dial' && (
-                  <TactileFocusDial
-                    onSessionComplete={handleSessionComplete}
-                    onOpenStressReset={() => setActiveTab('stress')}
-                    activeSoundscape={activeSoundscape}
-                    onToggleSoundscape={handleToggleSoundscape}
-                  />
+                  <div>
+                    {/* Mobile Screen Switcher (Dial vs Atmosphere Hub) */}
+                    <div className="lg:hidden flex items-center justify-center mb-6">
+                      <div className="bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl flex gap-1">
+                        <button
+                          onClick={() => setMobileDialView('dial')}
+                          className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            mobileDialView === 'dial'
+                              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                              : 'text-slate-500'
+                          }`}
+                        >
+                          Focus Dial
+                        </button>
+                        <button
+                          onClick={() => setMobileDialView('atmosphere')}
+                          className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            mobileDialView === 'atmosphere'
+                              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                              : 'text-slate-500'
+                          }`}
+                        >
+                          Environment Hub
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Dual-Column Desktop Grid matching the 2 screens in reference design! */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                      
+                      {/* Left Column: Tactile Focus Dial */}
+                      <div className={`lg:col-span-6 xl:col-span-6 ${mobileDialView === 'atmosphere' ? 'hidden lg:block' : 'block'}`}>
+                        <div className="max-w-md mx-auto">
+                          <TactileFocusDial
+                            onOpenStressReset={() => setActiveTab('stress')}
+                            activeSoundscape={activeSoundscape}
+                            onToggleSoundscape={handleToggleSoundscape}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Right Column: Environment Hub (Weather, Circadian Lighting, 40Hz Waves) */}
+                      <div className={`lg:col-span-6 xl:col-span-6 ${mobileDialView === 'dial' ? 'hidden lg:block' : 'block'}`}>
+                        <div className="max-w-md mx-auto">
+                          <EnvironmentHub
+                            userName={user?.name || 'Guest High-Performer'}
+                            onOpenStressReset={() => setActiveTab('stress')}
+                            activeSoundscape={activeSoundscape}
+                            onToggleSoundscape={handleToggleSoundscape}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {activeTab === 'stress' && (
@@ -359,7 +434,7 @@ export default function App() {
           </main>
 
           {/* Mobile Bottom Floating Clay Dock */}
-          <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50">
+          <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
             <div className="clay-card p-2 flex items-center justify-around shadow-2xl backdrop-blur-2xl">
               {navItems.map((item) => {
                 const Icon = item.icon;
