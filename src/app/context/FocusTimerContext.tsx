@@ -45,12 +45,12 @@ export function FocusTimerProvider({ children, onSessionSaved }: { children: Rea
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Sync remaining seconds when duration changes (only if not active)
+  // Sync remaining seconds only when duration explicitly changes AND session hasn't started yet
   useEffect(() => {
-    if (!isActive && !isBreak) {
+    if (!isActive && !isBreak && !sessionStartTime) {
       setSecondsRemaining(selectedDuration * 60);
     }
-  }, [selectedDuration, isActive, isBreak]);
+  }, [selectedDuration]);
 
   // Main countdown timer interval
   useEffect(() => {
@@ -132,6 +132,7 @@ export function FocusTimerProvider({ children, onSessionSaved }: { children: Rea
     if (!isActive) {
       setSelectedDuration(minutes);
       setSecondsRemaining(minutes * 60);
+      setSessionStartTime('');
     }
   };
 
