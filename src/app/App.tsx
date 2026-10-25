@@ -16,7 +16,8 @@ import {
   Volume2, 
   Menu,
   X,
-  Compass
+  Compass,
+  Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -303,8 +304,9 @@ function AppContent({
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
                         {user.name}
                       </span>
-                      <span className="text-[10px] text-emerald-500 font-semibold">
-                        ⚡ {user.streakDays}d Streak
+                      <span className="text-[10px] text-amber-500 font-semibold flex items-center gap-1 justify-end">
+                        <Flame size={12} className="text-amber-500 fill-amber-500" />
+                        <span>{user.streakDays}d Streak</span>
                       </span>
                     </div>
 

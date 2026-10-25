@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFocusTimer } from '../../context/FocusTimerContext';
+import { TomatoIcon } from '../ui/TomatoIcon';
 
 interface TactileFocusDialProps {
   onOpenStressReset: () => void;
@@ -99,7 +100,7 @@ export function TactileFocusDial({
           </span>
         </button>
 
-        {/* Calm Flow Tile */}
+        {/* Calm Flow / Pomodoro Tile */}
         <button
           onClick={() => setMode('flow')}
           className={`p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-200 ${
@@ -108,8 +109,8 @@ export function TactileFocusDial({
               : 'clay-button text-slate-700 dark:text-slate-300'
           }`}
         >
-          <div className={`p-1.5 rounded-xl ${activeMode === 'flow' ? 'bg-white/20' : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'}`}>
-            <Flame size={16} />
+          <div className={`p-1.5 rounded-xl ${activeMode === 'flow' ? 'bg-white/20' : 'bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400'}`}>
+            <TomatoIcon size={16} />
           </div>
           <span className="text-xs font-semibold">Pomodoro</span>
           <span className={`text-[10px] ${activeMode === 'flow' ? 'text-white/80' : 'text-slate-400'}`}>

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFocusTimer } from '../../context/FocusTimerContext';
+import { TomatoIcon } from '../ui/TomatoIcon';
 
 interface FloatingFocusClockProps {
   onOpenDial: () => void;
@@ -212,7 +213,11 @@ export function FloatingFocusClock({
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Fingerprint size={16} className={isActive ? 'text-sky-500' : 'text-slate-400'} />
+                  {activeMode === 'flow' ? (
+                    <TomatoIcon size={16} className={isActive ? 'text-red-500' : 'text-slate-400'} />
+                  ) : (
+                    <Fingerprint size={16} className={isActive ? 'text-sky-500' : 'text-slate-400'} />
+                  )}
                 </div>
               </div>
 
@@ -221,7 +226,7 @@ export function FloatingFocusClock({
                   {formattedTime}
                 </div>
                 <div className="text-[10px] font-semibold text-slate-400 mt-1 flex items-center gap-1.5 truncate">
-                  <span className="capitalize">{activeMode}</span>
+                  <span className="capitalize">{activeMode === 'flow' ? 'Pomodoro' : activeMode}</span>
                   <span>•</span>
                   <span className={isActive ? 'text-emerald-500' : 'text-amber-500'}>
                     {isActive ? 'Active' : 'Paused'}
