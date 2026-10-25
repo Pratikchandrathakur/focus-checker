@@ -8,11 +8,7 @@ class SoundscapeEngine {
 
   // Audio nodes
   private masterGain: GainNode | null = null;
-  private leftOsc: OscillatorNode | null = null;
-  private rightOsc: OscillatorNode | null = null;
-  private noiseNode: AudioBufferSourceNode | null = null;
-  private noiseGain: GainNode | null = null;
-  private filterNode: BiquadFilterNode | null = null;
+  private activeSources: { stop: () => void; disconnect: () => void }[] = [];
 
   private initContext() {
     if (!this.ctx) {
@@ -27,62 +23,54 @@ class SoundscapeEngine {
   public setVolume(volume: number) {
     if (this.masterGain && this.ctx) {
       const clamped = Math.max(0, Math.min(1, volume));
-      this.masterGain.gain.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
+      this.masterGain.gain.setValueAtTime(clamped, this.ctx.currentTime);
     }
   }
 
   public stop() {
-    if (!this.ctx) return;
-
-    if (this.masterGain) {
-      this.masterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+    if (this.masterGain && this.ctx) {
+      // Immediate silence
+      this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
+      try {
+        this.masterGain.disconnect();
+      } catch {}
+      this.masterGain = null;
     }
 
-    setTimeout(() => {
+    // Stop and disconnect every active oscillator and buffer source immediately
+    for (const src of this.activeSources) {
       try {
-        this.leftOsc?.stop();
-        this.leftOsc?.disconnect();
+        src.stop();
       } catch {}
       try {
-        this.rightOsc?.stop();
-        this.rightOsc?.disconnect();
+        src.disconnect();
       } catch {}
-      try {
-        this.noiseNode?.stop();
-        this.noiseNode?.disconnect();
-      } catch {}
-
-      this.leftOsc = null;
-      this.rightOsc = null;
-      this.noiseNode = null;
-      this.isPlaying = false;
-      this.currentPreset = 'none';
-    }, 150);
+    }
+    this.activeSources = [];
+    this.isPlaying = false;
+    this.currentPreset = 'none';
   }
 
   public playPreset(preset: 'gamma' | 'alpha' | 'pink' | 'rain', volume = 0.5) {
     this.initContext();
     if (!this.ctx) return;
 
+    // First stop all previous audio immediately
     this.stop();
 
-    setTimeout(() => {
-      if (!this.ctx) return;
+    // Create fresh master gain
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.setValueAtTime(Math.max(0.05, volume), this.ctx.currentTime);
+    this.masterGain.connect(this.ctx.destination);
 
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.01, this.ctx.currentTime);
-      this.masterGain.gain.exponentialRampToValueAtTime(Math.max(0.02, volume), this.ctx.currentTime + 0.8);
-      this.masterGain.connect(this.ctx.destination);
+    if (preset === 'gamma' || preset === 'alpha') {
+      this.playBinaural(preset);
+    } else if (preset === 'pink' || preset === 'rain') {
+      this.playFilteredNoise(preset);
+    }
 
-      if (preset === 'gamma' || preset === 'alpha') {
-        this.playBinaural(preset);
-      } else if (preset === 'pink' || preset === 'rain') {
-        this.playFilteredNoise(preset);
-      }
-
-      this.isPlaying = true;
-      this.currentPreset = preset;
-    }, 180);
+    this.isPlaying = true;
+    this.currentPreset = preset;
   }
 
   private playBinaural(type: 'gamma' | 'alpha') {
@@ -95,68 +83,74 @@ class SoundscapeEngine {
 
     const merger = this.ctx.createChannelMerger(2);
 
-    // Left Ear
-    this.leftOsc = this.ctx.createOscillator();
-    this.leftOsc.type = 'sine';
-    this.leftOsc.frequency.setValueAtTime(carrier, this.ctx.currentTime);
+    // Left Ear Oscillator
+    const leftOsc = this.ctx.createOscillator();
+    leftOsc.type = 'sine';
+    leftOsc.frequency.setValueAtTime(carrier, this.ctx.currentTime);
 
     const leftGain = this.ctx.createGain();
     leftGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-    this.leftOsc.connect(leftGain);
+    leftOsc.connect(leftGain);
     leftGain.connect(merger, 0, 0);
 
-    // Right Ear
-    this.rightOsc = this.ctx.createOscillator();
-    this.rightOsc.type = 'sine';
-    this.rightOsc.frequency.setValueAtTime(carrier + diff, this.ctx.currentTime);
+    // Right Ear Oscillator
+    const rightOsc = this.ctx.createOscillator();
+    rightOsc.type = 'sine';
+    rightOsc.frequency.setValueAtTime(carrier + diff, this.ctx.currentTime);
 
     const rightGain = this.ctx.createGain();
     rightGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-    this.rightOsc.connect(rightGain);
+    rightOsc.connect(rightGain);
     rightGain.connect(merger, 0, 1);
 
-    // Also blend subtle pink noise for smooth soothing depth
+    // Subtle background pink noise to smooth out pure tone
     const subNoise = this.createNoiseBuffer(true);
     const subNoiseSrc = this.ctx.createBufferSource();
     subNoiseSrc.buffer = subNoise;
     subNoiseSrc.loop = true;
+
     const subNoiseGain = this.ctx.createGain();
-    subNoiseGain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+    subNoiseGain.gain.setValueAtTime(0.08, this.ctx.currentTime);
     subNoiseSrc.connect(subNoiseGain);
     subNoiseGain.connect(this.masterGain);
-    subNoiseSrc.start();
 
     merger.connect(this.masterGain);
-    this.leftOsc.start();
-    this.rightOsc.start();
+
+    // Track all active sources so they stop immediately when stop() is called!
+    this.activeSources.push(leftOsc, rightOsc, subNoiseSrc);
+
+    leftOsc.start();
+    rightOsc.start();
+    subNoiseSrc.start();
   }
 
   private playFilteredNoise(type: 'pink' | 'rain') {
     if (!this.ctx || !this.masterGain) return;
 
     const buffer = this.createNoiseBuffer(type === 'pink');
-    this.noiseNode = this.ctx.createBufferSource();
-    this.noiseNode.buffer = buffer;
-    this.noiseNode.loop = true;
+    const noiseNode = this.ctx.createBufferSource();
+    noiseNode.buffer = buffer;
+    noiseNode.loop = true;
 
-    this.filterNode = this.ctx.createBiquadFilter();
+    const filterNode = this.ctx.createBiquadFilter();
     if (type === 'rain') {
-      this.filterNode.type = 'lowpass';
-      this.filterNode.frequency.setValueAtTime(750, this.ctx.currentTime);
-      this.filterNode.Q.setValueAtTime(1.2, this.ctx.currentTime);
+      filterNode.type = 'lowpass';
+      filterNode.frequency.setValueAtTime(700, this.ctx.currentTime);
+      filterNode.Q.setValueAtTime(1.1, this.ctx.currentTime);
     } else {
-      this.filterNode.type = 'lowpass';
-      this.filterNode.frequency.setValueAtTime(1200, this.ctx.currentTime);
+      filterNode.type = 'lowpass';
+      filterNode.frequency.setValueAtTime(1100, this.ctx.currentTime);
     }
 
-    this.noiseGain = this.ctx.createGain();
-    this.noiseGain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
 
-    this.noiseNode.connect(this.filterNode);
-    this.filterNode.connect(this.noiseGain);
-    this.noiseGain.connect(this.masterGain);
+    noiseNode.connect(filterNode);
+    filterNode.connect(noiseGain);
+    noiseGain.connect(this.masterGain);
 
-    this.noiseNode.start();
+    this.activeSources.push(noiseNode);
+    noiseNode.start();
   }
 
   private createNoiseBuffer(isPink: boolean): AudioBuffer {
@@ -179,9 +173,8 @@ class SoundscapeEngine {
         b6 = white * 0.115926;
       }
     } else {
-      // White noise
       for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * 0.18;
+        data[i] = (Math.random() * 2 - 1) * 0.16;
       }
     }
 

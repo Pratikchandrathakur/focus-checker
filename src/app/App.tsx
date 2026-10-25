@@ -165,11 +165,15 @@ function AppContent({
     toast.success("Activity journal cleared");
   };
 
+  const handleStopSoundscape = () => {
+    audioEngine.stop();
+    setActiveSoundscape('none');
+    toast.info("Audio soundscape stopped");
+  };
+
   const handleToggleSoundscape = (preset: 'gamma' | 'alpha' | 'pink' | 'rain') => {
     if (activeSoundscape === preset) {
-      audioEngine.stop();
-      setActiveSoundscape('none');
-      toast.info("Soundscape stopped");
+      handleStopSoundscape();
     } else {
       audioEngine.playPreset(preset, 0.6);
       setActiveSoundscape(preset);
@@ -203,6 +207,8 @@ function AppContent({
       <FloatingFocusClock
         onOpenDial={() => setActiveTab('dial')}
         activeSoundscape={activeSoundscape}
+        onStopSoundscape={handleStopSoundscape}
+        onToggleSoundscape={handleToggleSoundscape}
         isDialTabActive={activeTab === 'dial'}
       />
 
@@ -264,17 +270,21 @@ function AppContent({
               </nav>
 
               {/* Right Side Header Controls */}
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 
-                {/* Active Soundscape indicator pill */}
+                {/* Active Soundscape indicator & 1-Click Stop Pill (Visible on PC & Mobile!) */}
                 {activeSoundscape !== 'none' && (
-                  <button
-                    onClick={() => setActiveTab('sound')}
-                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold clay-tile-violet animate-pulse shadow-sm"
-                  >
-                    <Volume2 size={13} />
-                    <span className="capitalize">{activeSoundscape}</span>
-                  </button>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold clay-tile-violet shadow-sm">
+                    <Volume2 size={13} className="animate-pulse shrink-0" />
+                    <span className="capitalize text-[11px] hidden sm:inline">{activeSoundscape}</span>
+                    <button
+                      onClick={handleStopSoundscape}
+                      className="px-1.5 py-0.5 rounded-md bg-white/20 hover:bg-white/40 text-white text-[10px] font-bold flex items-center gap-1 transition-colors"
+                      title="Stop Audio immediately"
+                    >
+                      <span>Stop</span>
+                    </button>
+                  </div>
                 )}
 
                 {/* Dark/Light mode toggle */}
@@ -380,6 +390,7 @@ function AppContent({
                             onOpenStressReset={() => setActiveTab('stress')}
                             activeSoundscape={activeSoundscape}
                             onToggleSoundscape={handleToggleSoundscape}
+                            onStopSoundscape={handleStopSoundscape}
                           />
                         </div>
                       </div>

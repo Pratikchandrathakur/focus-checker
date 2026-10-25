@@ -316,6 +316,15 @@ export function TactileFocusDial({
         </div>
 
         <div className="flex items-center gap-1">
+          {activeSoundscape !== 'none' && (
+            <button
+              onClick={() => onToggleSoundscape(activeSoundscape as any)}
+              className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white flex items-center gap-1 transition-all shadow-sm"
+              title="Stop Audio immediately"
+            >
+              Stop
+            </button>
+          )}
           <button
             onClick={() => onToggleSoundscape('gamma')}
             className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${

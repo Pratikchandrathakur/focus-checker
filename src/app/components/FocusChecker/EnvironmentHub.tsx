@@ -21,6 +21,7 @@ interface EnvironmentHubProps {
   onOpenStressReset: () => void;
   activeSoundscape: string;
   onToggleSoundscape: (preset: 'gamma' | 'alpha' | 'pink' | 'rain') => void;
+  onStopSoundscape?: () => void;
 }
 
 export function EnvironmentHub({
@@ -28,14 +29,15 @@ export function EnvironmentHub({
   onOpenStressReset,
   activeSoundscape,
   onToggleSoundscape,
+  onStopSoundscape,
 }: EnvironmentHubProps) {
   const [circadianLightOn, setCircadianLightOn] = useState<boolean>(true);
   const [binauralAudioOn, setBinauralAudioOn] = useState<boolean>(activeSoundscape !== 'none');
 
   const handleToggleAudio = () => {
     if (activeSoundscape !== 'none') {
-      audioEngine.stop();
-      onToggleSoundscape('gamma');
+      if (onStopSoundscape) onStopSoundscape();
+      else audioEngine.stop();
       setBinauralAudioOn(false);
     } else {
       onToggleSoundscape('gamma');
