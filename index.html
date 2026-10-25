@@ -1,17 +1,59 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Track your attention span, discover focus patterns, and learn when you work best. A personal focus management tool." />
-    <meta name="theme-color" content="#4f46e5" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
-    <title>Focus Checker — Track & Optimize Your Attention</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>FocusChecker — Focus timer, breathing resets & attention insights</title>
+    <meta name="description" content="A free focus timer with 2-minute guided breathing resets, readiness check-ins, focus sounds and insights into when you work best. Private, no sign-up, works offline." />
+    <meta name="theme-color" content="#edf3fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b111c" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="https://focuschecker.app/" />
+
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="FocusChecker" />
+
+    <!-- Open Graph / social previews -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FocusChecker" />
+    <meta property="og:title" content="FocusChecker — Focus deeper. Reset faster." />
+    <meta property="og:description" content="Focus timer, 2-minute breathing resets and insights into when you work best. Free, private, works offline." />
+    <meta property="og:url" content="https://focuschecker.app/" />
+    <meta property="og:image" content="https://focuschecker.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FocusChecker — Focus deeper. Reset faster." />
+    <meta name="twitter:description" content="Focus timer, 2-minute breathing resets and insights into when you work best." />
+    <meta name="twitter:image" content="https://focuschecker.app/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "FocusChecker",
+        "url": "https://focuschecker.app/",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "Any (web browser)",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+
+    <!-- Apply saved theme before paint to avoid a light flash in dark mode -->
+    <script>
+      try {
+        var d = localStorage.getItem('focus-checker-dark-mode');
+        if (d === 'true' || (d === null && matchMedia('(prefers-color-scheme: dark)').matches))
+          document.documentElement.classList.add('dark');
+      } catch (e) {}
+    </script>
   </head>
   <body>
+    <noscript>FocusChecker needs JavaScript to run.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-  

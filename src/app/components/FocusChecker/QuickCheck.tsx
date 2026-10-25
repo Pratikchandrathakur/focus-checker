@@ -51,19 +51,19 @@ function generateRecommendation(
 ): { text: string; actionType: 'work' | 'sigh' | 'nap' | 'setup' } {
   if (['anxious', 'overwhelmed', 'frustrated'].includes(emotionalState)) {
     return {
-      text: "Your autonomic nervous system is in an elevated stress state. Forcing deep work right now will produce cognitive friction. Take 2 minutes to perform a Physiological Sigh (2 inhales, long exhale) to drop cortisol first.",
+      text: "You're reporting a stressed state. Deep work tends to feel harder like this — try a 2-minute breathing reset (two inhales, one long exhale) before you start.",
       actionType: 'sigh',
     };
   }
   if (sleepHours < 5.5) {
     return {
-      text: "Significant sleep debt detected. Executive control and working memory will deplete 40% faster today. Keep focus intervals capped at 25 minutes (Pomodoro) rather than long blocks, and avoid heavy multitasking.",
+      text: "You slept less than usual. Shorter 25-minute blocks with regular breaks are usually easier on a short night — and avoid heavy multitasking.",
       actionType: 'setup',
     };
   }
   if (score >= 80) {
     return {
-      text: "Exceptional cognitive readiness. Your prefrontal cortex is fully primed for high-complexity work. Engage your hardest, most cognitively demanding task immediately.",
+      text: "You're feeling sharp. Use it on your hardest, most important task first.",
       actionType: 'work',
     };
   }
@@ -142,7 +142,7 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
 
   const sliderFields = [
     { key: 'concentration' as const, label: 'Attentional Focus', desc: 'Ability to hold a single cognitive target', icon: Target },
-    { key: 'energy' as const, label: 'Cellular Energy', desc: 'Physical and nervous system vitality', icon: Zap },
+    { key: 'energy' as const, label: 'Energy', desc: 'How physically energised you feel', icon: Zap },
     { key: 'clarity' as const, label: 'Mental Clarity', desc: 'Absence of brain fog and rumination', icon: Brain },
     { key: 'distractionResistance' as const, label: 'Distraction Immunity', desc: 'Resistance to impulsive task switching', icon: ShieldCheck },
     { key: 'comfort' as const, label: 'Somatic Readiness', desc: 'Ergonomic & physiological comfort', icon: Heart },
@@ -166,7 +166,7 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
             </div>
           </div>
 
-          {/* Emotional State Grid (Zero emojis, refined clinical badges) */}
+          {/* Emotional State Grid (state badges) */}
           <div className="space-y-2.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Current Autonomic State
@@ -360,7 +360,7 @@ export function QuickCheck({ onComplete, onOpenStressReset }: QuickCheckProps) {
         {/* Actionable recommendation card */}
         <div className="clay-card-subtle p-5 space-y-3 border-l-4 border-l-sky-500">
           <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-xs uppercase tracking-wider">
-            <Lightbulb size={16} /> Clinical Recommendation
+            <Lightbulb size={16} /> Suggestion
           </div>
           <p className="text-xs md:text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
             {result?.recommendation.text}

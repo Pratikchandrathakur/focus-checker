@@ -1,19 +1,5 @@
-import React, { useState } from 'react';
-import { 
-  Sun, 
-  Moon, 
-  Wind, 
-  Zap, 
-  Headphones, 
-  Activity, 
-  ShieldCheck, 
-  CloudSun, 
-  Volume2, 
-  VolumeX, 
-  Sparkles,
-  ChevronRight
-} from 'lucide-react';
-import { toast } from 'sonner';
+import React from 'react';
+import { Sun, Wind, Zap, Headphones, ChevronRight, Sunrise, Sunset, MoonStar, Target } from 'lucide-react';
 import { audioEngine } from '../../services/audioEngine';
 
 interface EnvironmentHubProps {
@@ -22,6 +8,20 @@ interface EnvironmentHubProps {
   activeSoundscape: string;
   onToggleSoundscape: (preset: 'gamma' | 'alpha' | 'pink' | 'rain') => void;
   onStopSoundscape?: () => void;
+  warmLight: boolean;
+  onToggleWarmLight: () => void;
+  today: { focusMinutes: number; sessions: number; resets: number };
+  streakDays: number;
+  dailyGoalMinutes: number;
+  onCycleDailyGoal: () => void;
+}
+
+function dayPhase(d = new Date()) {
+  const h = d.getHours();
+  if (h >= 5 && h < 12) return { greet: 'Good morning', label: 'Morning', hint: 'Often a strong window for demanding work.', Icon: Sunrise };
+  if (h >= 12 && h < 17) return { greet: 'Good afternoon', label: 'Afternoon', hint: 'Energy often dips after lunch — shorter blocks help.', Icon: Sun };
+  if (h >= 17 && h < 22) return { greet: 'Good evening', label: 'Evening', hint: 'Good time to wrap up and review.', Icon: Sunset };
+  return { greet: 'Working late', label: 'Night', hint: 'Warm light is easier on the eyes at night.', Icon: MoonStar };
 }
 
 export function EnvironmentHub({
@@ -30,24 +30,24 @@ export function EnvironmentHub({
   activeSoundscape,
   onToggleSoundscape,
   onStopSoundscape,
+  warmLight,
+  onToggleWarmLight,
+  today,
+  streakDays,
+  dailyGoalMinutes,
+  onCycleDailyGoal,
 }: EnvironmentHubProps) {
-  const [circadianLightOn, setCircadianLightOn] = useState<boolean>(true);
-  const [binauralAudioOn, setBinauralAudioOn] = useState<boolean>(activeSoundscape !== 'none');
+  const phase = dayPhase();
+  const goalPct = Math.min(100, Math.round((today.focusMinutes / dailyGoalMinutes) * 100));
+  const binauralAudioOn = activeSoundscape !== 'none';
 
   const handleToggleAudio = () => {
     if (activeSoundscape !== 'none') {
       if (onStopSoundscape) onStopSoundscape();
       else audioEngine.stop();
-      setBinauralAudioOn(false);
     } else {
       onToggleSoundscape('gamma');
-      setBinauralAudioOn(true);
     }
-  };
-
-  const handleToggleCircadian = () => {
-    setCircadianLightOn(!circadianLightOn);
-    toast.info(!circadianLightOn ? "Circadian warm spectrum engaged" : "Default light mode restored");
   };
 
   return (
@@ -57,59 +57,54 @@ export function EnvironmentHub({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-full clay-dial-rim flex items-center justify-center font-bold text-sky-600 dark:text-sky-400 text-xs">
-            {userName.charAt(0).toUpperCase()}
+            {userName ? userName.charAt(0).toUpperCase() : <Zap size={14} />}
           </div>
           <div>
             <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
-              Hey, {userName.split(' ')[0]}
+              {phase.greet}{userName ? `, ${userName.split(' ')[0]}` : ''}
             </h3>
-            <p className="text-[11px] text-slate-400">Manage your focus atmosphere</p>
+            <p className="text-[11px] text-slate-400">Your focus environment</p>
           </div>
         </div>
 
-        <div className="w-3 h-3 rounded-full bg-amber-400 shadow-lg shadow-amber-400/40 animate-pulse" />
+        <div className={`w-3 h-3 rounded-full ${binauralAudioOn ? 'bg-violet-500 shadow-violet-500/40 animate-pulse' : 'bg-amber-400 shadow-amber-400/40'} shadow-lg`} title={binauralAudioOn ? 'Audio playing' : 'Audio off'} />
       </div>
 
-      {/* Weather / Circadian Atmosphere Card (Today 23° Sun with a cool style) */}
+      {/* Today */}
       <div className="clay-card-subtle p-3.5 relative overflow-hidden space-y-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-            Circadian Phase
-          </span>
+          <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Today</span>
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
-            Peak Dopamine
+            {phase.label}
           </span>
         </div>
 
-        <div className="flex items-center justify-between py-0.5">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl clay-button flex items-center justify-center text-amber-500">
-              <CloudSun size={24} />
+        <div className="flex items-center gap-3 py-0.5">
+          <div className="w-11 h-11 rounded-2xl clay-button flex items-center justify-center text-amber-500 shrink-0">
+            <phase.Icon size={22} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-2xl font-extrabold text-slate-900 dark:text-white font-mono flex items-baseline gap-1.5">
+              {today.focusMinutes}<span className="text-xs font-normal text-slate-400 font-sans">min focused</span>
             </div>
-            <div>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-white font-mono flex items-baseline gap-1.5">
-                23° <span className="text-xs font-normal text-slate-400">Optimal Temp</span>
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium">
-                Cool airflow with low cognitive friction
-              </p>
-            </div>
+            <p className="text-[11px] text-slate-500 font-medium">{phase.hint}</p>
           </div>
         </div>
 
-        {/* Triple Micro Metrics */}
         <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-200/50 dark:border-slate-800/50 text-center">
           <div>
-            <div className="text-[9px] text-slate-400">Cognitive Load</div>
-            <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">24%</div>
+            <div className="text-[9px] text-slate-400">Sessions</div>
+            <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">{today.sessions}</div>
           </div>
           <div>
-            <div className="text-[9px] text-slate-400">Resonance</div>
-            <div className="text-[11px] font-bold text-sky-600 dark:text-sky-400 mt-0.5">82%</div>
+            <div className="text-[9px] text-slate-400">Breathing resets</div>
+            <div className="text-[11px] font-bold text-sky-600 dark:text-sky-400 mt-0.5">{today.resets}</div>
           </div>
           <div>
-            <div className="text-[9px] text-slate-400">Vagal Tone</div>
-            <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">74 ms</div>
+            <div className="text-[9px] text-slate-400">Streak</div>
+            <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {streakDays} {streakDays === 1 ? 'day' : 'days'}
+            </div>
           </div>
         </div>
       </div>
@@ -117,25 +112,36 @@ export function EnvironmentHub({
       {/* Focus Station / Controls (My home section in image) */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
-          <span>Atmosphere Hub</span>
-          <span className="text-sky-500 text-[10px]">Optimal Alignment</span>
+          <span>Environment</span>
+          <span className="text-sky-500 text-[10px]">{warmLight || binauralAudioOn ? 'Customised' : 'Default'}</span>
         </div>
 
-        {/* Energy Banner (Energy 15.2 kWh style) */}
-        <div className="clay-tile-emerald p-3 rounded-2xl flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-xl bg-white/20 text-white">
-              <Zap size={16} />
+        {/* Daily goal */}
+        <button
+          onClick={onCycleDailyGoal}
+          className="w-full text-left clay-tile-emerald p-3 rounded-2xl shadow-md space-y-2"
+          title="Tap to change your daily goal"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-xl bg-white/20 text-white">
+                <Target size={16} />
+              </div>
+              <div>
+                <div className="text-[10px] font-bold">Daily focus goal</div>
+                <div className="text-sm font-extrabold font-mono leading-tight">
+                  {today.focusMinutes} / {dailyGoalMinutes} min
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-[10px] font-bold">Neural Energy Output</div>
-              <div className="text-sm font-extrabold font-mono leading-tight">15.2 kWh equivalent</div>
-            </div>
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/25 text-white">
+              {goalPct >= 100 ? 'Goal met' : `${goalPct}%`}
+            </span>
           </div>
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/25 text-white">
-            2x Flow Active
-          </span>
-        </div>
+          <div className="h-1.5 rounded-full bg-white/25 overflow-hidden">
+            <div className="h-full rounded-full bg-white transition-all duration-500" style={{ width: `${goalPct}%` }} />
+          </div>
+        </button>
 
         {/* Dual Control Cards with ON/OFF Switches (Light & Climate in reference image) */}
         <div className="grid grid-cols-2 gap-2.5 pt-0.5">
@@ -143,20 +149,23 @@ export function EnvironmentHub({
           {/* Tile 1: Circadian Lighting */}
           <div className="clay-card-subtle p-3 flex flex-col justify-between space-y-2">
             <div className="flex items-center justify-between">
-              <span className={`text-[9px] font-bold uppercase ${circadianLightOn ? 'text-amber-500' : 'text-slate-400'}`}>
-                {circadianLightOn ? 'ON' : 'OFF'}
+              <span className={`text-[9px] font-bold uppercase ${warmLight ? 'text-amber-500' : 'text-slate-400'}`}>
+                {warmLight ? 'ON' : 'OFF'}
               </span>
 
               {/* Physical Toggle Switch */}
               <button
-                onClick={handleToggleCircadian}
+                onClick={onToggleWarmLight}
+                role="switch"
+                aria-checked={warmLight}
+                aria-label="Warm light filter"
                 className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
-                  circadianLightOn ? 'bg-amber-500' : 'clay-switch-track'
+                  warmLight ? 'bg-amber-500' : 'clay-switch-track'
                 }`}
               >
                 <div
                   className={`w-4 h-4 rounded-full clay-switch-thumb transition-transform ${
-                    circadianLightOn ? 'translate-x-4' : 'translate-x-0'
+                    warmLight ? 'translate-x-4' : 'translate-x-0'
                   }`}
                 />
               </button>
@@ -166,34 +175,37 @@ export function EnvironmentHub({
               <div className="w-8 h-8 rounded-xl clay-button flex items-center justify-center text-amber-500 mx-auto mb-1">
                 <Sun size={16} />
               </div>
-              <div className="text-[11px] font-bold text-slate-900 dark:text-white">Circadian Light</div>
-              <div className="text-[9px] text-slate-400 mt-0.5">2hr 19min flow</div>
+              <div className="text-[11px] font-bold text-slate-900 dark:text-white">Warm light</div>
+              <div className="text-[9px] text-slate-400 mt-0.5">Softer screen tint</div>
             </div>
           </div>
 
           {/* Tile 2: Binaural Waves (Purple Tile in reference image) */}
           <div className={`p-3 rounded-2xl flex flex-col justify-between space-y-2 transition-all ${
-            binauralAudioOn || activeSoundscape !== 'none'
+            binauralAudioOn
               ? 'clay-tile-violet shadow-lg'
               : 'clay-card-subtle'
           }`}>
             <div className="flex items-center justify-between">
               <span className={`text-[9px] font-bold uppercase ${
-                binauralAudioOn || activeSoundscape !== 'none' ? 'text-white' : 'text-slate-400'
+                binauralAudioOn ? 'text-white' : 'text-slate-400'
               }`}>
-                {binauralAudioOn || activeSoundscape !== 'none' ? 'ON' : 'OFF'}
+                {binauralAudioOn ? 'ON' : 'OFF'}
               </span>
 
               {/* Physical Toggle Switch */}
               <button
                 onClick={handleToggleAudio}
+                role="switch"
+                aria-checked={binauralAudioOn}
+                aria-label="40Hz focus tone"
                 className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
-                  binauralAudioOn || activeSoundscape !== 'none' ? 'bg-white/40' : 'clay-switch-track'
+                  binauralAudioOn ? 'bg-white/40' : 'clay-switch-track'
                 }`}
               >
                 <div
                   className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform ${
-                    binauralAudioOn || activeSoundscape !== 'none' ? 'translate-x-4' : 'translate-x-0'
+                    binauralAudioOn ? 'translate-x-4' : 'translate-x-0'
                   }`}
                 />
               </button>
@@ -201,13 +213,13 @@ export function EnvironmentHub({
 
             <div className="text-center py-0.5">
               <div className={`w-8 h-8 rounded-xl flex items-center justify-center mx-auto mb-1 ${
-                binauralAudioOn || activeSoundscape !== 'none' ? 'bg-white/20 text-white' : 'clay-button text-purple-500'
+                binauralAudioOn ? 'bg-white/20 text-white' : 'clay-button text-purple-500'
               }`}>
                 <Headphones size={16} />
               </div>
-              <div className="text-[11px] font-bold">40Hz Gamma</div>
+              <div className="text-[11px] font-bold">40Hz tone</div>
               <div className={`text-[9px] mt-0.5 ${
-                binauralAudioOn || activeSoundscape !== 'none' ? 'text-white/80' : 'text-slate-400'
+                binauralAudioOn ? 'text-white/80' : 'text-slate-400'
               }`}>
                 {activeSoundscape !== 'none' ? 'Active stream' : 'Headphones ready'}
               </div>
@@ -216,9 +228,9 @@ export function EnvironmentHub({
         </div>
 
         {/* Quick Calming Sigh Action Row */}
-        <div
+        <button
           onClick={onOpenStressReset}
-          className="clay-card-subtle p-2.5 flex items-center justify-between cursor-pointer hover:scale-[1.01] transition-transform"
+          className="w-full text-left clay-card-subtle p-2.5 flex items-center justify-between cursor-pointer hover:scale-[1.01] transition-transform"
         >
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
@@ -226,14 +238,14 @@ export function EnvironmentHub({
             </div>
             <div>
               <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                Quick Physiological Sigh
+                Quick breathing reset
               </div>
-              <div className="text-[9px] text-slate-400">2 min autonomic nervous reset</div>
+              <div className="text-[9px] text-slate-400">2-minute guided physiological sigh</div>
             </div>
           </div>
 
           <ChevronRight size={14} className="text-slate-400" />
-        </div>
+        </button>
       </div>
     </div>
   );

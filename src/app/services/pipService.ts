@@ -125,7 +125,7 @@ class PictureInPictureService {
     if (state.isBreak) {
       arcGrad.addColorStop(0, '#10b981');
       arcGrad.addColorStop(1, '#34d399');
-    } else if (state.mode.toLowerCase().includes('pomodoro') || state.mode.toLowerCase().includes('flow')) {
+    } else if ((state.mode.toLowerCase().includes('sprint') || state.mode.toLowerCase().includes('flow') || state.mode.toLowerCase().includes('25') || state.mode.toLowerCase().includes('pomodoro')) || state.mode.toLowerCase().includes('flow')) {
       arcGrad.addColorStop(0, '#f97316');
       arcGrad.addColorStop(1, '#ef4444');
     } else {
@@ -146,30 +146,45 @@ class PictureInPictureService {
     ctx.stroke();
 
     // Center Icon inside Dial
-    if (state.mode.toLowerCase().includes('pomodoro') || state.mode.toLowerCase().includes('flow')) {
-      // Draw Tomato Icon
+    if (state.mode.toLowerCase().includes('sprint') || state.mode.toLowerCase().includes('flow') || state.mode.toLowerCase().includes('25') || (state.mode.toLowerCase().includes('sprint') || state.mode.toLowerCase().includes('flow') || state.mode.toLowerCase().includes('25') || state.mode.toLowerCase().includes('pomodoro'))) {
+      // Draw 25·5 Sprint Chronometer Icon
       const tx = cx;
-      const ty = cy + 2;
+      const ty = cy;
       
-      // Tomato Red Body
       ctx.save();
+      // Outer dial rim
       ctx.beginPath();
-      ctx.arc(tx, ty, 20, 0, 2 * Math.PI);
-      ctx.fillStyle = '#ef4444';
+      ctx.arc(tx, ty, 22, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Highlighted 25m interval arc
+      ctx.beginPath();
+      ctx.arc(tx, ty, 22, -Math.PI / 2, -Math.PI / 2 + (2 * Math.PI * (25 / 60)));
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Center pivot & hand pointing to 25m
+      ctx.beginPath();
+      ctx.arc(tx, ty, 3.5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#f43f5e';
       ctx.fill();
 
-      // Tomato highlight
       ctx.beginPath();
-      ctx.arc(tx - 6, ty - 6, 6, 0, 2 * Math.PI);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.fill();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + 8, ty + 13.5);
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
 
-      // Calyx (Green Leafy Stem)
-      ctx.fillStyle = '#22c55e';
+      // 25m marker tick
       ctx.beginPath();
-      ctx.ellipse(tx, ty - 18, 5, 8, 0, 0, 2 * Math.PI);
-      ctx.ellipse(tx - 8, ty - 15, 4, 7, -0.4, 0, 2 * Math.PI);
-      ctx.ellipse(tx + 8, ty - 15, 4, 7, 0.4, 0, 2 * Math.PI);
+      ctx.arc(tx + 11, ty + 19, 2.5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#f59e0b';
       ctx.fill();
       ctx.restore();
     } else {
@@ -190,7 +205,7 @@ class PictureInPictureService {
     ctx.save();
     ctx.fillStyle = state.isBreak
       ? '#065f46'
-      : state.mode.toLowerCase().includes('pomodoro')
+      : (state.mode.toLowerCase().includes('sprint') || state.mode.toLowerCase().includes('flow') || state.mode.toLowerCase().includes('25') || state.mode.toLowerCase().includes('pomodoro'))
       ? '#7c2d12'
       : '#0c4a6e';
     ctx.beginPath();
@@ -199,7 +214,7 @@ class PictureInPictureService {
 
     ctx.fillStyle = state.isBreak
       ? '#34d399'
-      : state.mode.toLowerCase().includes('pomodoro')
+      : (state.mode.toLowerCase().includes('sprint') || state.mode.toLowerCase().includes('flow') || state.mode.toLowerCase().includes('25') || state.mode.toLowerCase().includes('pomodoro'))
       ? '#fb923c'
       : '#38bdf8';
     ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';

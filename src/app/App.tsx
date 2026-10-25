@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { Toaster, toast } from 'sonner';
 import { 
   Zap, 
@@ -10,8 +10,10 @@ import {
   User, 
   Moon, 
   Sun, 
-  LogIn, 
-  LogOut, 
+ LogIn,
+  LogOut,
+  Cloud,
+  CloudOff, 
   Fingerprint, 
   Volume2, 
   Menu,
@@ -32,9 +34,11 @@ import { FloatingFocusClock } from './components/FocusChecker/FloatingFocusClock
 import { QuickCheck } from './components/FocusChecker/QuickCheck';
 import { StressReset } from './components/FocusChecker/StressReset';
 import { Soundscapes } from './components/FocusChecker/Soundscapes';
-import { Dashboard } from './components/FocusChecker/Dashboard';
+import { SessionReviewModal } from './components/FocusChecker/SessionReviewModal';
+import { LegalPage } from './components/LandingPage/LegalPage';
 import { History } from './components/FocusChecker/History';
-import { AuthModal } from './components/Auth/AuthModal';
+import { AuthModal, type AuthMode } from './components/Auth/AuthModal';
+import { supabase, cloudEnabled, profileFromUser, fetchHistory, upsertHistory, deleteAllHistory, mergeHistory } from './services/supabase';
 
 import { 
   HistoryItem, 
@@ -45,39 +49,84 @@ import {
   UserProfile 
 } from './types';
 import { audioEngine } from './services/audioEngine';
+import { computeStreak, todayStats, latestReadinessToday } from './services/stats';
 
-// LocalStorage helpers
+// Recharts is heavy — only load it when Analytics is opened.
+const Dashboard = lazy(() => import('./components/FocusChecker/Dashboard').then((m) => ({ default: m.Dashboard })));
+
+type AppTab = 'dial' | 'check' | 'stress' | 'sound' | 'dashboard' | 'history';
+type Route = { page: 'landing' } | { page: 'privacy' } | { page: 'terms' } | { page: 'app'; tab: AppTab };
+
+const TAB_PATHS: Record<AppTab, string> = {
+  dial: '/app',
+  stress: '/app/breathe',
+  check: '/app/readiness',
+  sound: '/app/sounds',
+  dashboard: '/app/analytics',
+  history: '/app/journal',
+};
+
+function parseRoute(pathname: string): Route {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  if (path === '/privacy') return { page: 'privacy' };
+  if (path === '/terms') return { page: 'terms' };
+  const tab = (Object.keys(TAB_PATHS) as AppTab[]).find((t) => TAB_PATHS[t] === path);
+  if (tab) return { page: 'app', tab };
+  if (path.startsWith('/app')) return { page: 'app', tab: 'dial' };
+  return { page: 'landing' };
+}
+
+function routePath(r: Route) {
+  if (r.page === 'app') return TAB_PATHS[r.tab];
+  if (r.page === 'landing') return '/';
+  return `/${r.page}`;
+}
+
+const DAILY_GOAL_KEY = 'focus-checker-daily-goal';
+const WARM_LIGHT_KEY = 'focus-checker-warm-light';
+const GOAL_OPTIONS = [60, 90, 120, 180, 240];
+
+function readNumber(key: string, fallback: number) {
+  try {
+    const v = Number(localStorage.getItem(key));
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function writeStorage(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }
+}
+
+// LocalStorage helpers (wrapped: storage can be unavailable in private modes)
 function loadHistory(): HistoryItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
     if (!raw) return [];
-    return JSON.parse(raw) as HistoryItem[];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as HistoryItem[]) : [];
   } catch {
     return [];
   }
 }
 
-function saveHistory(items: HistoryItem[]): void {
-  localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(items));
-}
-
 function loadDarkMode(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEYS.DARK_MODE) === 'true';
+    const v = localStorage.getItem(STORAGE_KEYS.DARK_MODE);
+    if (v === null) return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    return v === 'true';
   } catch {
     return false;
   }
-}
-
-function saveDarkMode(v: boolean): void {
-  localStorage.setItem(STORAGE_KEYS.DARK_MODE, String(v));
 }
 
 function loadAuthUser(): UserProfile | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.AUTH_USER);
     if (!raw) return null;
-    return JSON.parse(raw) as UserProfile;
+    const u = JSON.parse(raw) as UserProfile;
+    // Cloud sessions are restored by Supabase; only guest profiles live here.
+    return u && u.id === 'guest' ? u : null;
   } catch {
     return null;
   }
@@ -85,14 +134,15 @@ function loadAuthUser(): UserProfile | null {
 
 export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>(loadHistory);
+  const latestCheck = useMemo(() => latestReadinessToday(history), [history]);
 
   const handleSessionComplete = (session: FocusSession) => {
     setHistory((prev) => [session, ...prev]);
-    toast.success("Focus block recorded in your neural journal");
+    toast.success('Session saved to your journal');
   };
 
   return (
-    <FocusTimerProvider onSessionSaved={handleSessionComplete}>
+    <FocusTimerProvider onSessionSaved={handleSessionComplete} latestCheck={latestCheck}>
       <AppContent history={history} setHistory={setHistory} />
     </FocusTimerProvider>
   );
@@ -105,55 +155,148 @@ function AppContent({
   history: HistoryItem[];
   setHistory: React.Dispatch<React.SetStateAction<HistoryItem[]>>;
 }) {
-  const [activeTab, setActiveTab] = useState<'landing' | 'dial' | 'check' | 'stress' | 'sound' | 'dashboard' | 'history'>('dial');
+  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname));
+  const activeTab: AppTab | null = route.page === 'app' ? route.tab : null;
   const [darkMode, setDarkMode] = useState<boolean>(loadDarkMode);
   const [user, setUser] = useState<UserProfile | null>(loadAuthUser);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
-  const [authDefaultMode, setAuthDefaultMode] = useState<'login' | 'register'>('login');
-  const [activeSoundscape, setActiveSoundscape] = useState<string>('none');
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [syncState, setSyncState] = useState<'off' | 'syncing' | 'synced' | 'error'>('off');
+  const syncedIds = useRef<Set<number> | null>(null);
+  const isCloudUser = Boolean(cloudEnabled && user && user.id !== 'guest');
 
-  // Mobile sub-tab toggle on Dial view (Phone vs Atmosphere)
-  const [mobileDialView, setMobileDialView] = useState<'dial' | 'atmosphere'>('dial');
-
-  // Sync dark mode class
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    saveDarkMode(darkMode);
-  }, [darkMode]);
-
-  // Persist history
-  useEffect(() => {
-    saveHistory(history);
-  }, [history]);
-
-  const toggleDarkMode = () => setDarkMode((prev) => !prev);
-
-  const handleOpenAuth = (mode: 'login' | 'register') => {
-    setAuthDefaultMode(mode);
+  const openAuth = (mode: AuthMode) => {
+    setAuthMode(mode);
     setAuthModalOpen(true);
   };
 
-  const handleAuthSuccess = (authenticatedUser: UserProfile) => {
-    setUser(authenticatedUser);
-  };
+  // Restore a signed-in session and follow auth changes (magic link, password reset, other tabs).
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) setUser(profileFromUser(data.session.user));
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        openAuth('reset');
+      } else if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
+        setUser(profileFromUser(session.user));
+        try { localStorage.removeItem(STORAGE_KEYS.AUTH_USER); } catch { /* ignore */ }
+      } else if (event === 'SIGNED_OUT') {
+        setUser((u) => (u && u.id === 'guest' ? u : null));
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
+  // On sign-in: merge cloud + this device's history, upload anything only stored locally.
+  useEffect(() => {
+    if (!isCloudUser || !user) {
+      syncedIds.current = null;
+      setSyncState('off');
+      return;
+    }
+    let cancelled = false;
+    setSyncState('syncing');
+    (async () => {
+      try {
+        const remote = await fetchHistory();
+        if (cancelled) return;
+        const remoteIds = new Set(remote.map((h) => h.id));
+        let localOnly: HistoryItem[] = [];
+        setHistory((local) => {
+          localOnly = local.filter((h) => !remoteIds.has(h.id));
+          return mergeHistory(remote, local);
+        });
+        await upsertHistory(user.id, localOnly);
+        syncedIds.current = new Set([...remoteIds, ...localOnly.map((h) => h.id)]);
+        if (!cancelled) setSyncState('synced');
+      } catch {
+        if (!cancelled) setSyncState('error');
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCloudUser, user?.id]);
+
+  // Push new entries as they are logged.
+  useEffect(() => {
+    if (!isCloudUser || !user || !syncedIds.current) return;
+    const fresh = history.filter((h) => !syncedIds.current!.has(h.id));
+    if (!fresh.length) return;
+    fresh.forEach((h) => syncedIds.current!.add(h.id));
+    setSyncState('syncing');
+    upsertHistory(user.id, fresh)
+      .then(() => setSyncState('synced'))
+      .catch(() => {
+        fresh.forEach((h) => syncedIds.current!.delete(h.id));
+        setSyncState('error');
+      });
+  }, [history, isCloudUser, user]);
+  const [activeSoundscape, setActiveSoundscape] = useState<string>('none');
+  const [warmLight, setWarmLight] = useState<boolean>(() => {
+    try { return localStorage.getItem(WARM_LIGHT_KEY) === 'true'; } catch { return false; }
+  });
+  const [dailyGoal, setDailyGoal] = useState<number>(() => readNumber(DAILY_GOAL_KEY, 120));
+  const [mobileDialView, setMobileDialView] = useState<'dial' | 'atmosphere'>('dial');
+
+  const navigate = useCallback((r: Route) => {
+    const path = routePath(r);
+    if (window.location.pathname !== path) window.history.pushState(null, '', path);
+    setRoute(r);
+    window.scrollTo({ top: 0 });
+  }, []);
+  const setActiveTab = useCallback((tab: AppTab) => navigate({ page: 'app', tab }), [navigate]);
+  const navigatePath = useCallback((path: string) => navigate(parseRoute(path)), [navigate]);
+
+  useEffect(() => {
+    const onPop = () => setRoute(parseRoute(window.location.pathname));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // Per-page titles for SEO / browser history (the timer overrides while running).
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      landing: 'FocusChecker — Focus timer, breathing resets & attention insights',
+      privacy: 'Privacy Policy — FocusChecker',
+      terms: 'Terms of Use — FocusChecker',
+    };
+    if (route.page !== 'app') document.title = titles[route.page];
+    else if (!document.title.includes('·') && !document.title.startsWith('Paused')) document.title = 'FocusChecker — Focus timer, breathing resets & attention insights';
+  }, [route]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    writeStorage(STORAGE_KEYS.DARK_MODE, String(darkMode));
+  }, [darkMode]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+  }, [history]);
+
+  useEffect(() => writeStorage(WARM_LIGHT_KEY, String(warmLight)), [warmLight]);
+  useEffect(() => writeStorage(DAILY_GOAL_KEY, String(dailyGoal)), [dailyGoal]);
+
+  const streakDays = useMemo(() => computeStreak(history), [history]);
+  const today = useMemo(() => todayStats(history), [history]);
+
+  const toggleDarkMode = () => setDarkMode((prev) => !prev);
+
+  const handleSignOut = async () => {
+    try { localStorage.removeItem(STORAGE_KEYS.AUTH_USER); } catch { /* ignore */ }
+    if (isCloudUser && supabase) {
+      await supabase.auth.signOut();
+      // Don't leave a signed-out person's history on a shared device.
+      setHistory([]);
+    }
     setUser(null);
-    toast.info("Logged out successfully");
+    toast.info('Logged out successfully');
   };
 
   const handleQuickCheckComplete = (check: ReadinessCheck) => {
     setHistory((prev) => [check, ...prev]);
-    if (check.score >= 70) {
-      setActiveTab('dial');
-    } else {
-      setActiveTab('stress');
-    }
+    setActiveTab(check.score >= 70 ? 'dial' : 'stress');
   };
 
   const handleStressResetComplete = (resetSession: StressResetSession) => {
@@ -161,25 +304,41 @@ function AppContent({
     setActiveTab('dial');
   };
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     setHistory([]);
-    toast.success("Activity journal cleared");
+    if (isCloudUser && user) {
+      try {
+        await deleteAllHistory(user.id);
+        syncedIds.current = new Set();
+      } catch {
+        toast.error('Cleared on this device, but the cloud copy could not be deleted. Try again when online.');
+        return;
+      }
+    }
+    toast.success('Journal cleared');
   };
 
   const handleStopSoundscape = () => {
     audioEngine.stop();
     setActiveSoundscape('none');
-    toast.info("Audio soundscape stopped");
   };
 
+  const SOUND_NAMES: Record<string, string> = { gamma: '40Hz tone', alpha: '10Hz tone', pink: 'Pink noise', rain: 'Rain' };
   const handleToggleSoundscape = (preset: 'gamma' | 'alpha' | 'pink' | 'rain') => {
     if (activeSoundscape === preset) {
       handleStopSoundscape();
     } else {
       audioEngine.playPreset(preset, 0.6);
       setActiveSoundscape(preset);
-      toast.success(`Playing ${preset} focus waves`);
+      toast.success(`Playing ${SOUND_NAMES[preset]}`);
     }
+  };
+
+  const cycleDailyGoal = () => {
+    const i = GOAL_OPTIONS.indexOf(dailyGoal);
+    const next = GOAL_OPTIONS[(i + 1) % GOAL_OPTIONS.length];
+    setDailyGoal(next);
+    toast.info(`Daily goal set to ${next} minutes`);
   };
 
   // Navigation Items
@@ -194,36 +353,47 @@ function AppContent({
 
   return (
     <div className="min-h-screen clay-canvas font-sans text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      <Toaster position="top-center" richColors />
+      <Toaster position="top-center" richColors theme={darkMode ? 'dark' : 'light'} />
 
-      {/* Auth Modal */}
+      {/* Warm light: a gentle amber tint over the whole UI */}
+      {warmLight && (
+        <div
+          aria-hidden
+          className="fixed inset-0 pointer-events-none z-[9998]"
+          style={{ background: 'rgba(255, 166, 64, 0.10)', mixBlendMode: 'multiply' }}
+        />
+      )}
+
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        onAuthSuccess={handleAuthSuccess}
-        defaultMode={authDefaultMode}
+        onAuthSuccess={setUser}
+        defaultMode={authMode}
       />
 
-      {/* Floating Clock Widget (Persistent across all tabs, fully draggable on all devices!) */}
+      <SessionReviewModal />
+
       <FloatingFocusClock
         onOpenDial={() => setActiveTab('dial')}
         activeSoundscape={activeSoundscape}
         onStopSoundscape={handleStopSoundscape}
         onToggleSoundscape={handleToggleSoundscape}
         isDialTabActive={activeTab === 'dial'}
+        enabled
       />
 
-      {/* Landing Page */}
-      {activeTab === 'landing' ? (
+      {route.page === 'privacy' || route.page === 'terms' ? (
+        <LegalPage kind={route.page} onBack={() => (window.history.length > 1 ? window.history.back() : navigate({ page: 'landing' }))} />
+      ) : route.page === 'landing' ? (
         <LandingPage
           onEnterApp={() => setActiveTab('dial')}
-          onOpenAuth={handleOpenAuth}
           onOpenQuickCheck={() => setActiveTab('check')}
           onOpenStressReset={() => setActiveTab('stress')}
+          onNavigate={navigatePath}
+          onOpenAuth={openAuth}
         />
       ) : (
-        <div className="flex flex-col min-h-screen pb-20 md:pb-6">
-          
+        <div className="flex flex-col min-h-screen pb-24 lg:pb-6">
           {/* Top Header */}
           <header className="sticky top-0 z-40 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-slate-800/60 px-4 md:px-8 py-2.5 transition-all">
             <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -231,9 +401,10 @@ function AppContent({
               {/* Brand and Landing shortcut */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setActiveTab('landing')}
+                  onClick={() => navigate({ page: 'landing' })}
                   className="w-9 h-9 rounded-2xl clay-tile-cyan flex items-center justify-center shadow-md cursor-pointer"
-                  title="View Landing Page"
+                  title="FocusChecker home"
+                  aria-label="FocusChecker home"
                 >
                   <Zap size={18} className="text-white" />
                 </button>
@@ -242,7 +413,7 @@ function AppContent({
                     Focus<span className="text-sky-500">Checker</span>
                   </h1>
                   <span className="text-[10px] font-semibold text-slate-400">
-                    Tactile Attention Suite
+                    Focus · Breathe · Learn
                   </span>
                 </div>
               </div>
@@ -257,6 +428,7 @@ function AppContent({
                     <button
                       key={item.id}
                       onClick={() => setActiveTab(item.id)}
+                      aria-current={isActive ? 'page' : undefined}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
                         isActive
                           ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
@@ -277,7 +449,7 @@ function AppContent({
                 {activeSoundscape !== 'none' && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold clay-tile-violet shadow-sm">
                     <Volume2 size={13} className="animate-pulse shrink-0" />
-                    <span className="capitalize text-[11px] hidden sm:inline">{activeSoundscape}</span>
+                    <span className="text-[11px] hidden sm:inline">{SOUND_NAMES[activeSoundscape] ?? activeSoundscape}</span>
                     <button
                       onClick={handleStopSoundscape}
                       className="px-1.5 py-0.5 rounded-md bg-white/20 hover:bg-white/40 text-white text-[10px] font-bold flex items-center gap-1 transition-colors"
@@ -292,7 +464,8 @@ function AppContent({
                 <button
                   onClick={toggleDarkMode}
                   className="w-9 h-9 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300"
-                  title="Toggle Light / Dark Mode"
+                  title="Toggle light / dark mode"
+                  aria-label="Toggle light / dark mode"
                 >
                   {darkMode ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
@@ -300,27 +473,38 @@ function AppContent({
                 {/* User profile / Login */}
                 {user ? (
                   <div className="flex items-center gap-2">
-                    <div className="hidden sm:flex flex-col text-right">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
-                        {user.name}
+                    {isCloudUser && (
+                      <span
+                        className={`hidden sm:flex w-8 h-8 rounded-xl items-center justify-center ${syncState === 'error' ? 'text-amber-500' : 'text-emerald-500'}`}
+                        title={syncState === 'error' ? 'Sync paused — your data is safe on this device and will sync later' : syncState === 'syncing' ? 'Syncing…' : 'Synced to your account'}
+                      >
+                        {syncState === 'error' ? <CloudOff size={16} /> : <Cloud size={16} className={syncState === 'syncing' ? 'animate-pulse' : ''} />}
                       </span>
+                    )}
+                    <div className="hidden sm:flex flex-col text-right">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">{user.name}</span>
                       <span className="text-[10px] text-amber-500 font-semibold flex items-center gap-1 justify-end">
-                        <Flame size={12} className="text-amber-500 fill-amber-500" />
-                        <span>{user.streakDays}d Streak</span>
+                        <Flame size={12} className={streakDays > 0 ? 'text-amber-500 fill-amber-500' : 'text-slate-400'} />
+                        <span>{streakDays}d Streak</span>
                       </span>
                     </div>
-
+                    {user.id === 'guest' && cloudEnabled && (
+                      <button onClick={() => openAuth('register')} className="hidden md:inline-flex px-2.5 py-1.5 rounded-xl clay-button text-[11px] font-semibold text-sky-600">
+                        Save to account
+                      </button>
+                    )}
                     <button
-                      onClick={handleLogout}
+                      onClick={handleSignOut}
                       className="w-9 h-9 rounded-xl clay-button flex items-center justify-center text-slate-500 hover:text-red-500"
                       title="Log Out"
+                      aria-label="Log out"
                     >
                       <LogOut size={16} />
                     </button>
                   </div>
                 ) : (
                   <button
-                    onClick={() => handleOpenAuth('login')}
+                    onClick={() => openAuth('login')}
                     className="px-3.5 py-1.5 rounded-xl clay-tile-cyan text-xs font-semibold flex items-center gap-1.5 shadow-md"
                   >
                     <LogIn size={14} />
@@ -365,7 +549,7 @@ function AppContent({
                               : 'text-slate-500'
                           }`}
                         >
-                          Environment Hub
+                          Today
                         </button>
                       </div>
                     </div>
@@ -380,6 +564,9 @@ function AppContent({
                             onOpenStressReset={() => setActiveTab('stress')}
                             activeSoundscape={activeSoundscape}
                             onToggleSoundscape={handleToggleSoundscape}
+                            readinessScore={today.readiness?.score ?? null}
+                            sessionsToday={today.sessions}
+                            onOpenReadiness={() => setActiveTab('check')}
                           />
                         </div>
                       </div>
@@ -388,11 +575,17 @@ function AppContent({
                       <div className={`lg:col-span-6 xl:col-span-6 ${mobileDialView === 'dial' ? 'hidden lg:block' : 'block'}`}>
                         <div className="max-w-md mx-auto">
                           <EnvironmentHub
-                            userName={user?.name || 'Guest High-Performer'}
+                            userName={user?.name || ''}
                             onOpenStressReset={() => setActiveTab('stress')}
                             activeSoundscape={activeSoundscape}
                             onToggleSoundscape={handleToggleSoundscape}
                             onStopSoundscape={handleStopSoundscape}
+                            warmLight={warmLight}
+                            onToggleWarmLight={() => setWarmLight((w) => !w)}
+                            today={today}
+                            streakDays={streakDays}
+                            dailyGoalMinutes={dailyGoal}
+                            onCycleDailyGoal={cycleDailyGoal}
                           />
                         </div>
                       </div>
@@ -430,11 +623,14 @@ function AppContent({
                 )}
 
                 {activeTab === 'dashboard' && (
-                  <Dashboard
-                    history={history}
-                    onOpenQuickCheck={() => setActiveTab('check')}
-                    onOpenStressReset={() => setActiveTab('stress')}
-                  />
+                  <Suspense fallback={<div className="clay-card p-10 text-center text-xs text-slate-400">Loading analytics…</div>}>
+                    <Dashboard
+                      history={history}
+                      onOpenQuickCheck={() => setActiveTab('check')}
+                      onOpenStressReset={() => setActiveTab('stress')}
+                      onOpenDial={() => setActiveTab('dial')}
+                    />
+                  </Suspense>
                 )}
 
                 {activeTab === 'history' && (
@@ -449,7 +645,7 @@ function AppContent({
 
           {/* Mobile Bottom Floating Clay Dock */}
           <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
-            <div className="clay-card p-2 flex items-center justify-around shadow-2xl backdrop-blur-2xl">
+            <nav className="clay-card p-1.5 flex items-center justify-between shadow-2xl backdrop-blur-2xl" aria-label="Main">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -458,18 +654,19 @@ function AppContent({
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`flex-1 min-w-0 flex flex-col items-center gap-1 py-2 px-1 rounded-2xl transition-all ${
                       isActive
-                        ? 'clay-tile-cyan scale-105 px-3'
+                        ? 'clay-tile-cyan'
                         : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
                     <Icon size={18} />
-                    <span className="text-[10px] font-semibold">{item.label}</span>
+                    <span className="text-[10px] font-semibold truncate max-w-full">{item.label}</span>
                   </button>
                 );
               })}
-            </div>
+            </nav>
           </div>
         </div>
       )}

@@ -209,7 +209,7 @@ export function StressReset({ onComplete, onClose }: StressResetProps) {
             }`}
           >
             Physiological Sigh
-            <span className="block text-[10px] font-normal opacity-80 mt-0.5">Fastest Relief (Huberman)</span>
+            <span className="block text-[10px] font-normal opacity-80 mt-0.5">Two inhales, long exhale</span>
           </button>
 
           <button
@@ -224,7 +224,7 @@ export function StressReset({ onComplete, onClose }: StressResetProps) {
             }`}
           >
             Box Breathing
-            <span className="block text-[10px] font-normal opacity-80 mt-0.5">Navy SEAL Focus (4-4-4)</span>
+            <span className="block text-[10px] font-normal opacity-80 mt-0.5">Equal 4-second phases</span>
           </button>
         </div>
 
@@ -271,8 +271,8 @@ export function StressReset({ onComplete, onClose }: StressResetProps) {
         <div className="clay-card-subtle p-3.5 mb-6 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
           <span className="font-semibold text-emerald-600 dark:text-emerald-400">Why it works: </span>
           {technique === 'physiological-sigh'
-            ? 'Two rapid inhales pop collapsed alveoli in the lungs; the extended exhale dumps CO2 and activates the vagus nerve to slow heart rate immediately.'
-            : 'Equal 4-second intervals balance oxygen and carbon dioxide, halting the fight-or-flight sympathetic response.'}
+            ? 'A double inhale followed by a long, slow exhale. Studies of slow breathing with extended exhales suggest it can help people feel calmer within a few minutes.'
+            : 'Inhale, hold, exhale and hold for 4 seconds each. The steady rhythm gives your attention something simple to follow.'}
         </div>
 
         {/* Controls */}

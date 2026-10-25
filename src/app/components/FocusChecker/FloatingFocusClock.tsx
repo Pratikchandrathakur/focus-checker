@@ -18,9 +18,10 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFocusTimer } from '../../context/FocusTimerContext';
-import { TomatoIcon } from '../ui/TomatoIcon';
+import { SprintIcon } from '../ui/SprintIcon';
 import { pipService, PipLiveState } from '../../services/pipService';
 import { toast } from 'sonner';
+import { INTERVAL_MODE } from '../../config';
 
 interface FloatingFocusClockProps {
   onOpenDial: () => void;
@@ -28,6 +29,23 @@ interface FloatingFocusClockProps {
   onStopSoundscape?: () => void;
   onToggleSoundscape?: (preset: 'gamma' | 'alpha' | 'pink' | 'rain') => void;
   isDialTabActive?: boolean;
+  /** False on marketing / legal pages. */
+  enabled?: boolean;
+}
+
+// Keep the widget clear of the mobile bottom dock (~96px) and header.
+const MOBILE_BREAKPOINT = 1024;
+const DOCK_CLEARANCE = 104;
+function defaultPosition(minimized: boolean) {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const mobile = w < MOBILE_BREAKPOINT;
+  const width = minimized ? 220 : 320;
+  const height = minimized ? 56 : 230;
+  return {
+    x: Math.max(12, w - width - 12),
+    y: Math.max(72, h - height - (mobile ? DOCK_CLEARANCE : 16)),
+  };
 }
 
 export function FloatingFocusClock({
@@ -36,29 +54,31 @@ export function FloatingFocusClock({
   onStopSoundscape,
   onToggleSoundscape,
   isDialTabActive = false,
+  enabled = true,
 }: FloatingFocusClockProps) {
   const timer = useFocusTimer();
-  const [isMinimized, setIsMinimized] = useState<boolean>(false);
-  const [isVisible, setIsVisible] = useState<boolean>(true);
+  // Phones start with the compact pill so content stays readable.
+  const [isMinimized, setIsMinimized] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT);
+  const [dismissed, setDismissed] = useState<boolean>(false);
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
 
-  // Absolute Screen Coordinates for In-Browser Draggability
-  const [position, setPosition] = useState<{ x: number; y: number }>(() => {
-    if (typeof window !== 'undefined') {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      return {
-        x: Math.max(16, w - 320),
-        y: Math.max(16, h - 240),
-      };
-    }
-    return { x: 40, y: 40 };
-  });
+  const [position, setPosition] = useState<{ x: number; y: number }>(() =>
+    typeof window !== 'undefined' ? defaultPosition(window.innerWidth < MOBILE_BREAKPOINT) : { x: 40, y: 40 }
+  );
+
+  // Starting a block brings the widget back if it was closed.
+  useEffect(() => {
+    if (timer.isActive) setDismissed(false);
+  }, [timer.isActive]);
+
+  // Always on screen (as in the original design) unless the user closes it.
+  void isDialTabActive;
+  const isVisible = enabled && !dismissed;
 
   // Keep a mutable ref of live timer state for Canvas PiP fallback
   const timerStateRef = useRef<PipLiveState>({
     time: timer.formattedTime,
-    mode: timer.isBreak ? 'Break Mode' : timer.activeMode === 'flow' ? 'Pomodoro' : 'Deep Work',
+    mode: timer.isBreak ? 'Break Mode' : timer.activeMode === 'flow' ? INTERVAL_MODE.label : 'Deep Work',
     progress: timer.progressRatio,
     isActive: timer.isActive,
     isBreak: timer.isBreak,
@@ -68,7 +88,7 @@ export function FloatingFocusClock({
   useEffect(() => {
     timerStateRef.current = {
       time: timer.formattedTime,
-      mode: timer.isBreak ? 'Break Mode' : timer.activeMode === 'flow' ? 'Pomodoro' : 'Deep Work',
+      mode: timer.isBreak ? 'Break Mode' : timer.activeMode === 'flow' ? INTERVAL_MODE.label : 'Deep Work',
       progress: timer.progressRatio,
       isActive: timer.isActive,
       isBreak: timer.isBreak,
@@ -79,14 +99,16 @@ export function FloatingFocusClock({
   // Track window resize to ensure widget stays inside viewport
   useEffect(() => {
     const handleResize = () => {
+      const mobile = window.innerWidth < MOBILE_BREAKPOINT;
       setPosition((prev) => ({
-        x: Math.max(8, Math.min(window.innerWidth - 300, prev.x)),
-        y: Math.max(8, Math.min(window.innerHeight - 220, prev.y)),
+        x: Math.max(8, Math.min(window.innerWidth - (isMinimized ? 220 : 320), prev.x)),
+        y: Math.max(8, Math.min(window.innerHeight - (isMinimized ? 56 : 230) - (mobile ? DOCK_CLEARANCE : 8), prev.y)),
       }));
     };
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [isMinimized]);
 
   // Universal Window-level Pointer Dragging (Works on touch + mouse across all screens)
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -108,7 +130,8 @@ export function FloatingFocusClock({
       const widgetHeight = isMinimized ? 55 : 220;
 
       const newX = Math.max(8, Math.min(window.innerWidth - widgetWidth - 8, initX + dx));
-      const newY = Math.max(8, Math.min(window.innerHeight - widgetHeight - 8, initY + dy));
+      const bottomPad = window.innerWidth < MOBILE_BREAKPOINT ? DOCK_CLEARANCE : 8;
+      const newY = Math.max(8, Math.min(window.innerHeight - widgetHeight - bottomPad, initY + dy));
       setPosition({ x: newX, y: newY });
     };
 
@@ -201,7 +224,7 @@ export function FloatingFocusClock({
         });
 
         setPipWindow(pWin);
-        toast.success("Picture-in-Picture active — floating on top of all your apps!");
+        toast.success('Timer is now floating above your other windows');
         return;
       } catch (err) {
         console.warn("Document PiP request failed, falling back to Canvas PiP:", err);
@@ -327,7 +350,7 @@ export function FloatingFocusClock({
                     isPiPActive={Boolean(pipWindow)}
                     onMinimize={() => setIsMinimized(true)}
                     onOpenDial={onOpenDial}
-                    onClose={() => setIsVisible(false)}
+                    onClose={() => setDismissed(true)}
                   />
                 </motion.div>
               )}
@@ -408,7 +431,7 @@ function ClockCardContent({
             {timer.isBreak
               ? 'Break Mode'
               : timer.activeMode === 'flow'
-              ? 'Pomodoro Flow'
+              ? `${INTERVAL_MODE.shortLabel} ${Math.min(timer.pomodoroRound + 1, timer.pomodoro.rounds)}/${timer.pomodoro.rounds}`
               : 'Deep Work'}
           </span>
         </div>
@@ -484,22 +507,19 @@ function ClockCardContent({
                 timer.isBreak
                   ? '#10b981'
                   : timer.activeMode === 'flow'
-                  ? '#f97316'
+                  ? '#f43f5e'
                   : '#0ea5e9'
               }
               strokeWidth="4.5"
               strokeDasharray={miniCircumference}
               strokeDashoffset={miniStrokeOffset}
-              strokeLineCap="round"
+              strokeLinecap="round"
               className="transition-all duration-300"
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             {timer.activeMode === 'flow' ? (
-              <TomatoIcon
-                size={20}
-                className={timer.isActive ? 'text-red-500' : 'text-slate-400'}
-              />
+              <SprintIcon size={22} muted={!timer.isActive} />
             ) : (
               <Fingerprint
                 size={20}
@@ -515,7 +535,7 @@ function ClockCardContent({
           </div>
           <div className="text-[11px] font-semibold text-slate-400 mt-1.5 flex items-center gap-1.5 truncate">
             <span className={timer.isActive ? 'text-emerald-500 font-bold' : 'text-amber-500'}>
-              {timer.isActive ? '● In Session' : '⏸ Paused'}
+              {timer.isActive ? (timer.isBreak ? 'On break' : 'In session') : 'Paused'}
             </span>
             <span>•</span>
             <span>{Math.round(timer.progressRatio * 100)}%</span>
@@ -587,7 +607,8 @@ function ClockCardContent({
         <button
           onClick={timer.resetTimer}
           className="p-2 rounded-xl clay-button text-slate-600 dark:text-slate-300 cursor-pointer"
-          title="Reset timer"
+          title="End block"
+          aria-label="End block"
         >
           <RotateCcw size={14} />
         </button>

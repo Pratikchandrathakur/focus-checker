@@ -37,6 +37,7 @@ function isStressReset(item: HistoryItem): item is StressResetSession {
 export function History({ history, onClearHistory }: HistoryProps) {
   const [filter, setFilter] = useState<'all' | 'sessions' | 'checks' | 'resets'>('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const filtered = useMemo(() => {
     return history.filter((item) => {
@@ -58,13 +59,30 @@ export function History({ history, onClearHistory }: HistoryProps) {
     toast.success("Journal exported as JSON");
   };
 
+  const handleExportCSV = () => {
+    const cols = ['type', 'date', 'score', 'task', 'durationMinutes', 'focusQuality', 'contentClarity', 'frustrationLevel', 'attentionFaded', 'fadeAfterMinutes', 'technique', 'stressBefore', 'stressAfter', 'sleepHours', 'note'];
+    const esc = (v: unknown) => {
+      const str = v === undefined || v === null ? '' : String(v);
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const rows = history.map((h) => cols.map((c) => esc((h as unknown as Record<string, unknown>)[c])).join(','));
+    const blob = new Blob([[cols.join(','), ...rows].join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `focus-checker-journal-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Journal exported as CSV');
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
       
       {/* Top Filter and Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl max-w-full overflow-x-auto">
           {[
             { id: 'all' as const, label: 'All Activity' },
             { id: 'sessions' as const, label: 'Focus Sessions' },
@@ -74,7 +92,7 @@ export function History({ history, onClearHistory }: HistoryProps) {
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 filter === tab.id
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
@@ -86,7 +104,7 @@ export function History({ history, onClearHistory }: HistoryProps) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {history.length > 0 && (
             <>
               <button
@@ -94,16 +112,40 @@ export function History({ history, onClearHistory }: HistoryProps) {
                 className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5"
                 title="Export journal"
               >
-                <Download size={14} /> Export
+                <Download size={14} /> JSON
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5"
+                title="Export journal as CSV (opens in Excel / Sheets)"
+              >
+                <Download size={14} /> CSV
               </button>
 
-              <button
-                onClick={onClearHistory}
-                className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-red-500 flex items-center gap-1.5"
-                title="Clear journal"
-              >
-                <Trash2 size={14} /> Clear
-              </button>
+              {confirmClear ? (
+                <>
+                  <button
+                    onClick={() => { onClearHistory(); setConfirmClear(false); }}
+                    className="px-3 py-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Trash2 size={14} /> Delete all
+                  </button>
+                  <button
+                    onClick={() => setConfirmClear(false)}
+                    className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-slate-600 dark:text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  className="px-3 py-1.5 rounded-xl clay-button text-xs font-semibold text-red-500 flex items-center gap-1.5"
+                  title="Clear journal"
+                >
+                  <Trash2 size={14} /> Clear
+                </button>
+              )}
             </>
           )}
         </div>
@@ -117,10 +159,10 @@ export function History({ history, onClearHistory }: HistoryProps) {
               <Brain size={28} />
             </div>
             <h4 className="font-bold text-base text-slate-800 dark:text-slate-200">
-              No journal entries recorded
+              Nothing logged yet
             </h4>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Start a Focus Block on the dial, perform a Readiness Diagnostic, or execute a 2-minute Stress Reset to populate your log.
+              Finish a focus block, take a readiness check or do a 2-minute breathing reset and it will show up here.
             </p>
           </div>
         ) : (

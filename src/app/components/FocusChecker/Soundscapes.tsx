@@ -23,7 +23,7 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
     {
       id: 'alpha' as const,
       name: '10Hz Alpha Flow',
-      description: 'Gentle brainwave entrainment for relaxed alertness and creative flow.',
+      description: 'A slower 10Hz beat many people find calming for reading and planning.',
       icon: Sparkles,
       gradient: 'clay-tile-violet',
       tag: 'Reading & Strategy',
@@ -158,7 +158,7 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
         {/* Info callout */}
         <div className="p-4 rounded-2xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 text-xs text-sky-800 dark:text-sky-300 leading-relaxed">
           <span className="font-semibold">Binaural Beats Note: </span>
-          Gamma and Alpha presets work through stereo frequency disparity (e.g., 220Hz left, 260Hz right). To experience the neural entrainment effect, wear stereo headphones.
+          Gamma and Alpha presets work through stereo frequency disparity (e.g., 220Hz left, 260Hz right). Wear stereo headphones to hear the beat. Research on binaural beats is mixed — use whatever sound helps you focus. Keep the volume low.
         </div>
       </div>
     </div>

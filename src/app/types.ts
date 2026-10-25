@@ -1,4 +1,4 @@
-// Clinical & professional mental states (AI slop free, no silly emojis)
+// Self-reported mental states
 export type EmotionalState =
   | 'calm'
   | 'focused'

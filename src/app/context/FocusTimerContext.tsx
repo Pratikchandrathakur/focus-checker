@@ -1,234 +1,447 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Zap, Coffee } from 'lucide-react';
-import { FocusSession } from '../types';
+import { FocusSession, ReadinessCheck } from '../types';
+import { audioEngine } from '../services/audioEngine';
+import { INTERVAL_MODE } from '../config';
 
 export type FocusModeType = 'deep' | 'flow' | 'reset' | 'sound';
+
+const BREAK_MINUTES = 5;
+/** Sessions shorter than this are discarded on reset instead of offered for logging. */
+const MIN_LOGGABLE_MINUTES = 5;
+const PERSIST_KEY = 'focus-checker-timer';
+const POMO_KEY = 'focus-checker-pomodoro';
+
+export interface PomodoroSettings {
+  work: number;
+  shortBreak: number;
+  longBreak: number;
+  /** Work rounds before a long break. */
+  rounds: number;
+  autoStartBreaks: boolean;
+  autoStartWork: boolean;
+}
+
+export const DEFAULT_POMODORO: PomodoroSettings = {
+  work: 25, shortBreak: 5, longBreak: 15, rounds: 4, autoStartBreaks: true, autoStartWork: false,
+};
+
+function loadPomodoro(): PomodoroSettings {
+  try {
+    return { ...DEFAULT_POMODORO, ...JSON.parse(localStorage.getItem(POMO_KEY) || '{}') };
+  } catch {
+    return DEFAULT_POMODORO;
+  }
+}
+
+export interface PendingReview {
+  actualMinutes: number;
+  plannedMinutes: number;
+  startTime: string;
+  endTime: string;
+  completed: boolean;
+}
+
+export interface SessionReviewInput {
+  focusQuality: number;
+  contentClarity: number;
+  frustrationLevel: number;
+  attentionFaded: boolean;
+  fadeMinutes: number;
+}
 
 interface FocusTimerContextType {
   secondsRemaining: number;
   totalDurationSeconds: number;
   isActive: boolean;
   isBreak: boolean;
+  /** True once a focus block has been started and not yet finished or reset. */
+  hasStarted: boolean;
   activeMode: FocusModeType;
   selectedDuration: number;
   taskName: string;
-  completedSessionsToday: number;
   breaksCount: number;
   progressRatio: number;
   formattedTime: string;
-  
-  // Actions
+  pendingReview: PendingReview | null;
+  pomodoro: PomodoroSettings;
+  /** Work rounds completed in the current Pomodoro cycle (0..rounds). */
+  pomodoroRound: number;
+  breakKind: 'short' | 'long' | 'manual';
+  setPomodoro: (s: PomodoroSettings) => void;
+  skipBreak: () => void;
+
   toggleTimer: () => void;
   pauseTimer: () => void;
   startTimer: () => void;
   resetTimer: () => void;
+  finishEarly: () => void;
   takeBreak: () => void;
   setDuration: (minutes: number) => void;
   setMode: (mode: FocusModeType) => void;
   setTaskName: (name: string) => void;
-  handleSaveSession: (focusQuality: number, contentClarity: number, frustrationLevel: number, attentionFaded: boolean, fadeMinutes: number) => FocusSession;
+  saveReview: (input: SessionReviewInput) => FocusSession | null;
+  dismissReview: () => void;
 }
 
 const FocusTimerContext = createContext<FocusTimerContextType | null>(null);
 
-export function FocusTimerProvider({ children, onSessionSaved }: { children: React.ReactNode; onSessionSaved?: (session: FocusSession) => void }) {
-  const [activeMode, setActiveMode] = useState<FocusModeType>('deep');
-  const [selectedDuration, setSelectedDuration] = useState<number>(25);
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(25 * 60);
+interface PersistedTimer {
+  activeMode: FocusModeType;
+  selectedDuration: number;
+  isBreak: boolean;
+  isActive: boolean;
+  endAt: number | null;
+  remainingMs: number;
+  sessionStartTime: string;
+  savedFocusRemainingMs: number | null;
+  breaksCount: number;
+  taskName: string;
+  breakMinutes?: number;
+  breakKind?: 'short' | 'long' | 'manual';
+  pomodoroRound?: number;
+}
+
+function loadPersisted(): Partial<PersistedTimer> {
+  try {
+    return JSON.parse(localStorage.getItem(PERSIST_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function notify(title: string, body: string) {
+  try {
+    if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+      new Notification(title, { body, icon: '/icon.svg' });
+    }
+  } catch {
+    /* notifications are best-effort */
+  }
+}
+
+export function FocusTimerProvider({
+  children,
+  onSessionSaved,
+  latestCheck,
+}: {
+  children: React.ReactNode;
+  onSessionSaved?: (session: FocusSession) => void;
+  /** Today's most recent readiness check, used to give a logged session real context. */
+  latestCheck?: ReadinessCheck | null;
+}) {
+  const p = useRef(loadPersisted()).current;
+
+  const [activeMode, setActiveMode] = useState<FocusModeType>(p.activeMode ?? 'deep');
+  const [selectedDuration, setSelectedDuration] = useState<number>(p.selectedDuration ?? 45);
+  const [isBreak, setIsBreak] = useState<boolean>(p.isBreak ?? false);
   const [isActive, setIsActive] = useState<boolean>(false);
-  const [isBreak, setIsBreak] = useState<boolean>(false);
-  const [sessionStartTime, setSessionStartTime] = useState<string>('');
-  const [taskName, setTaskName] = useState<string>('Deep Focus Flow');
-  const [completedSessionsToday, setCompletedSessionsToday] = useState<number>(3);
-  const [breaksCount, setBreaksCount] = useState<number>(0);
+  // Timing is driven by wall-clock timestamps, so it stays accurate in background tabs.
+  const [endAt, setEndAt] = useState<number | null>(null);
+  const [remainingMs, setRemainingMs] = useState<number>(() => {
+    if (p.isActive && p.endAt) return Math.max(0, p.endAt - Date.now());
+    return p.remainingMs ?? (p.selectedDuration ?? 45) * 60000;
+  });
+  const [sessionStartTime, setSessionStartTime] = useState<string>(p.sessionStartTime ?? '');
+  const [savedFocusRemainingMs, setSavedFocusRemainingMs] = useState<number | null>(p.savedFocusRemainingMs ?? null);
+  const [taskName, setTaskName] = useState<string>(p.taskName ?? 'Deep focus block');
+  const [breaksCount, setBreaksCount] = useState<number>(p.breaksCount ?? 0);
+  const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
+  const [pomodoro, setPomodoroState] = useState<PomodoroSettings>(loadPomodoro);
+  const [pomodoroRound, setPomodoroRound] = useState<number>(p.pomodoroRound ?? 0);
+  const [breakMinutes, setBreakMinutes] = useState<number>(p.breakMinutes ?? BREAK_MINUTES);
+  const [breakKind, setBreakKind] = useState<'short' | 'long' | 'manual'>(p.breakKind ?? 'manual');
+  const [, forceTick] = useState(0);
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Sync remaining seconds only when duration explicitly changes AND session hasn't started yet
+  // Resume a block that was running before a page reload.
   useEffect(() => {
-    if (!isActive && !isBreak && !sessionStartTime) {
-      setSecondsRemaining(selectedDuration * 60);
-    }
-  }, [selectedDuration]);
-
-  // Main countdown timer interval
-  useEffect(() => {
-    if (isActive) {
-      timerRef.current = setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            handleComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isActive, isBreak]);
-
-  const handleComplete = () => {
-    setIsActive(false);
-    if (!isBreak) {
-      toast.success("Focus block finished! Well done.", {
-        description: "Take a moment to record your session quality.",
-        duration: 8000,
-      });
-    } else {
-      toast.info("Break finished! Ready to dive back in?");
-      setIsBreak(false);
-      setSecondsRemaining(selectedDuration * 60);
-    }
-  };
-
-  const toggleTimer = () => {
-    if (!isActive) {
-      if (!sessionStartTime) {
-        setSessionStartTime(new Date().toISOString());
-      }
+    if (p.isActive && p.endAt && p.endAt > Date.now()) {
+      setEndAt(p.endAt);
       setIsActive(true);
-      toast.success(isBreak ? "Break started — rest your eyes" : "Focus session engaged — staying in flow", {
-        icon: <Zap className="size-4 text-sky-500" />
-      });
-    } else {
-      setIsActive(false);
-      toast.info("Session paused");
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const startTimer = () => {
-    if (!sessionStartTime) setSessionStartTime(new Date().toISOString());
+  const liveRemainingMs = isActive && endAt ? Math.max(0, endAt - Date.now()) : remainingMs;
+  const totalDurationSeconds = isBreak ? breakMinutes * 60 : selectedDuration * 60;
+  const secondsRemaining = Math.ceil(liveRemainingMs / 1000);
+
+  // Persist so a refresh doesn't lose a running session.
+  useEffect(() => {
+    const data: PersistedTimer = {
+      activeMode, selectedDuration, isBreak, isActive, endAt,
+      remainingMs: liveRemainingMs, sessionStartTime, savedFocusRemainingMs, breaksCount, taskName,
+      breakMinutes, breakKind, pomodoroRound,
+    };
+    try { localStorage.setItem(PERSIST_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMode, selectedDuration, isBreak, isActive, endAt, remainingMs, sessionStartTime, savedFocusRemainingMs, breaksCount, taskName, breakMinutes, breakKind, pomodoroRound]);
+
+  useEffect(() => {
+    try { localStorage.setItem(POMO_KEY, JSON.stringify(pomodoro)); } catch { /* ignore */ }
+  }, [pomodoro]);
+
+  const isPomodoro = activeMode === 'flow';
+
+  /** Start a countdown of `ms` right away. */
+  const runFor = (ms: number) => {
+    setRemainingMs(ms);
+    setEndAt(Date.now() + ms);
     setIsActive(true);
   };
 
+  const openReview = useCallback((completed: boolean, focusMsRemaining: number) => {
+    const plannedMinutes = selectedDuration;
+    const actualMinutes = Math.max(1, Math.round((plannedMinutes * 60000 - focusMsRemaining) / 60000));
+    setPendingReview({
+      actualMinutes,
+      plannedMinutes,
+      startTime: sessionStartTime || new Date(Date.now() - actualMinutes * 60000).toISOString(),
+      endTime: new Date().toISOString(),
+      completed,
+    });
+  }, [selectedDuration, sessionStartTime]);
+
+  const completeRef = useRef<() => void>(() => {});
+  completeRef.current = () => {
+    setIsActive(false);
+    setEndAt(null);
+    audioEngine.playBreathChime('exhale');
+    if (isBreak) {
+      setIsBreak(false);
+      if (isPomodoro && breakKind !== 'manual') {
+        // Pomodoro: break over, next work round.
+        if (breakKind === 'long') setPomodoroRound(0);
+        setBreakKind('manual');
+        const ms = selectedDuration * 60000;
+        if (pomodoro.autoStartWork) {
+          setSessionStartTime(new Date().toISOString());
+          runFor(ms);
+          toast.info('Break over — next round started');
+        } else {
+          setRemainingMs(ms);
+          toast.info('Break over — press play for the next round');
+        }
+        notify('Break finished', 'Time for the next round.');
+        return;
+      }
+      const resume = savedFocusRemainingMs;
+      setSavedFocusRemainingMs(null);
+      setRemainingMs(resume ?? selectedDuration * 60000);
+      toast.info(resume ? 'Break over — press play to continue your block.' : 'Break over. Ready when you are.');
+      notify('Break finished', 'Time to get back to it.');
+    } else if (isPomodoro) {
+      // Pomodoro: log the round, then move into a short or long break.
+      openReview(true, 0);
+      const round = pomodoroRound + 1;
+      const long = round >= pomodoro.rounds;
+      setPomodoroRound(long ? pomodoro.rounds : round);
+      const mins = long ? pomodoro.longBreak : pomodoro.shortBreak;
+      setSessionStartTime('');
+      setBreaksCount(0);
+      setIsBreak(true);
+      setBreakKind(long ? 'long' : 'short');
+      setBreakMinutes(mins);
+      if (pomodoro.autoStartBreaks) runFor(mins * 60000);
+      else setRemainingMs(mins * 60000);
+      toast.success(long ? `Round ${round} done — take a ${mins}-minute long break` : `Round ${round} done — ${mins}-minute break`, { duration: 6000 });
+      notify('Round complete', long ? 'Long break time.' : 'Short break time.');
+    } else {
+      setRemainingMs(0);
+      toast.success('Focus block complete. Nice work.', { duration: 6000 });
+      notify('Focus block complete', 'Take a moment to rate the session.');
+      openReview(true, 0);
+    }
+  };
+
+  // Tick: re-render a few times a second while running; detect completion.
+  useEffect(() => {
+    if (!isActive || !endAt) return;
+    const id = setInterval(() => {
+      if (Date.now() >= endAt) completeRef.current();
+      else forceTick((t) => t + 1);
+    }, 250);
+    return () => clearInterval(id);
+  }, [isActive, endAt]);
+
+  const startTimer = () => {
+    if (isActive) return;
+    if (!isBreak && !sessionStartTime) setSessionStartTime(new Date().toISOString());
+    const ms = remainingMs > 0 ? remainingMs : totalDurationSeconds * 1000;
+    setEndAt(Date.now() + ms);
+    setIsActive(true);
+    try {
+      if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    } catch { /* ignore */ }
+  };
+
   const pauseTimer = () => {
+    if (!isActive) return;
+    setRemainingMs(liveRemainingMs);
+    setEndAt(null);
     setIsActive(false);
   };
 
-  const resetTimer = () => {
+  const toggleTimer = () => {
+    if (isActive) {
+      pauseTimer();
+      toast.info('Paused');
+    } else {
+      startTimer();
+      toast.success(isBreak ? 'Break started — rest your eyes' : 'Focus block started', {
+        icon: <Zap className="size-4 text-sky-500" />,
+      });
+    }
+  };
+
+  const clearSession = (durationMinutes = selectedDuration) => {
     setIsActive(false);
     setIsBreak(false);
-    setSecondsRemaining(selectedDuration * 60);
+    setEndAt(null);
+    setRemainingMs(durationMinutes * 60000);
     setSessionStartTime('');
+    setSavedFocusRemainingMs(null);
+    setBreaksCount(0);
+    setBreakKind('manual');
   };
 
+  /** Stop the current block. Meaningful partial blocks are offered for logging. */
+  const finishEarly = () => {
+    const focusRemaining = isBreak ? savedFocusRemainingMs ?? selectedDuration * 60000 : liveRemainingMs;
+    const elapsedMin = (selectedDuration * 60000 - focusRemaining) / 60000;
+    if (sessionStartTime && elapsedMin >= MIN_LOGGABLE_MINUTES) {
+      setIsActive(false);
+      setEndAt(null);
+      openReview(false, focusRemaining);
+    } else {
+      clearSession();
+    }
+  };
+
+  const resetTimer = () => finishEarly();
+
   const takeBreak = () => {
-    setIsActive(false);
+    if (isBreak) return;
+    const mins = isPomodoro ? pomodoro.shortBreak : BREAK_MINUTES;
+    // Keep the focus block's progress so it can resume after the break.
+    if (sessionStartTime) setSavedFocusRemainingMs(liveRemainingMs);
     setIsBreak(true);
+    setBreakKind('manual');
+    setBreakMinutes(mins);
     setBreaksCount((b) => b + 1);
-    setSecondsRemaining(5 * 60);
-    toast.info("Switched to 5-minute break mode", {
-      icon: <Coffee className="size-4 text-amber-500" />
-    });
+    runFor(mins * 60000);
+    toast.info(`${mins}-minute break started`, { icon: <Coffee className="size-4 text-amber-500" /> });
+  };
+
+  /** End the current break now. */
+  const skipBreak = () => {
+    if (!isBreak) return;
+    setEndAt(Date.now());
+    if (!isActive) {
+      setIsActive(true);
+    }
+  };
+
+  const setPomodoro = (next: PomodoroSettings) => {
+    const clean: PomodoroSettings = {
+      work: Math.min(180, Math.max(1, Math.round(next.work))),
+      shortBreak: Math.min(60, Math.max(1, Math.round(next.shortBreak))),
+      longBreak: Math.min(90, Math.max(1, Math.round(next.longBreak))),
+      rounds: Math.min(12, Math.max(1, Math.round(next.rounds))),
+      autoStartBreaks: next.autoStartBreaks,
+      autoStartWork: next.autoStartWork,
+    };
+    setPomodoroState(clean);
+    if (activeMode === 'flow' && !isActive && !sessionStartTime && !isBreak) {
+      setSelectedDuration(clean.work);
+      setRemainingMs(clean.work * 60000);
+    }
+    if (pomodoroRound > clean.rounds) setPomodoroRound(0);
   };
 
   const setDuration = (minutes: number) => {
-    if (!isActive) {
-      setSelectedDuration(minutes);
-      setSecondsRemaining(minutes * 60);
-      setSessionStartTime('');
-    }
+    if (isActive || sessionStartTime) return;
+    setSelectedDuration(minutes);
+    setRemainingMs(minutes * 60000);
   };
 
   const setMode = (mode: FocusModeType) => {
+    if (isActive) return;
     setActiveMode(mode);
+    if (sessionStartTime) return;
     if (mode === 'deep') setDuration(45);
-    else if (mode === 'flow') setDuration(25);
+    else if (mode === 'flow') setDuration(pomodoro.work);
   };
 
-  const handleSaveSession = (
-    focusQuality: number,
-    contentClarity: number,
-    frustrationLevel: number,
-    attentionFaded: boolean,
-    fadeMinutes: number
-  ): FocusSession => {
-    const totalMinutes = selectedDuration;
-    const computedScore = Math.round(
-      (focusQuality * 3 + contentClarity * 2 + (10 - frustrationLevel) * 2 + (attentionFaded ? 4 : 8)) / 8 * 10
+  const saveReview = (input: SessionReviewInput): FocusSession | null => {
+    if (!pendingReview) return null;
+    const { focusQuality, contentClarity, frustrationLevel, attentionFaded, fadeMinutes } = input;
+    const score = Math.round(
+      ((focusQuality * 3 + contentClarity * 2 + (10 - frustrationLevel) * 2 + (attentionFaded ? 4 : 8)) / 8) * 10
     );
-
-    const newSession: FocusSession = {
+    const mins = pendingReview.actualMinutes;
+    const session: FocusSession = {
       id: Date.now(),
-      date: sessionStartTime || new Date().toISOString(),
+      date: pendingReview.startTime,
       type: 'Session',
       task: taskName,
-      tags: [activeMode === 'deep' ? 'Deep Work' : activeMode === 'flow' ? 'Calm Flow' : 'Creative'],
+      tags: [activeMode === 'deep' ? 'Deep Work' : activeMode === 'flow' ? INTERVAL_MODE.label : 'Focus'],
       mode: activeMode === 'deep' ? 'deep-work' : activeMode === 'flow' ? 'light-focus' : 'creative',
-      emotionalState: 'focused',
-      dayFlow: 'productive',
+      emotionalState: latestCheck?.emotionalState ?? 'neutral',
+      dayFlow: latestCheck?.dayFlow ?? 'steady',
       workPlace: 'home-office',
-      sleepHours: 7.5,
-      startTime: sessionStartTime || new Date().toISOString(),
-      endTime: new Date().toISOString(),
-      durationMinutes: totalMinutes,
-      plannedDurationMinutes: selectedDuration,
-      breaks: breaksCount > 0 ? [{ startMinute: Math.round(totalMinutes / 2), durationMinutes: 5 }] : [],
+      sleepHours: latestCheck?.sleepHours ?? 0,
+      startTime: pendingReview.startTime,
+      endTime: pendingReview.endTime,
+      durationMinutes: mins,
+      plannedDurationMinutes: pendingReview.plannedMinutes,
+      breaks: Array.from({ length: breaksCount }, () => ({ startMinute: 0, durationMinutes: BREAK_MINUTES })),
       focusQuality,
       contentClarity,
       frustrationLevel,
-      score: Math.min(100, Math.max(0, computedScore)),
-      note: `${taskName} (${totalMinutes}m)`,
+      score: Math.min(100, Math.max(0, score)),
+      note: pendingReview.completed ? '' : `Ended early at ${mins} of ${pendingReview.plannedMinutes} min`,
       attentionFaded,
-      fadeAfterMinutes: attentionFaded ? fadeMinutes : undefined,
+      fadeAfterMinutes: attentionFaded ? Math.min(fadeMinutes, mins) : undefined,
     };
-
-    if (onSessionSaved) onSessionSaved(newSession);
-    setCompletedSessionsToday((c) => c + 1);
-    resetTimer();
-    return newSession;
+    onSessionSaved?.(session);
+    setPendingReview(null);
+    if (!isBreak) clearSession();
+    return session;
   };
 
-  // Calculations
-  const totalDurationSeconds = isBreak ? 5 * 60 : selectedDuration * 60;
+  const dismissReview = () => {
+    setPendingReview(null);
+    if (!isBreak) clearSession();
+  };
+
   const elapsed = totalDurationSeconds - secondsRemaining;
   const progressRatio = Math.min(1, Math.max(0, elapsed / totalDurationSeconds));
+  const formattedTime = `${String(Math.floor(secondsRemaining / 60)).padStart(2, '0')}:${String(secondsRemaining % 60).padStart(2, '0')}`;
+  const hasStarted = Boolean(sessionStartTime) || isBreak;
 
-  const minutesDisplay = Math.floor(secondsRemaining / 60);
-  const secondsDisplay = secondsRemaining % 60;
-  const formattedTime = `${String(minutesDisplay).padStart(2, '0')}:${String(secondsDisplay).padStart(2, '0')}`;
-
-  // Tab Title Sync Effect
   useEffect(() => {
+    // Marketing/legal pages manage their own titles.
+    if (!window.location.pathname.startsWith('/app')) return;
     if (isActive) {
-      const modeLabel = isBreak ? 'Break' : activeMode === 'deep' ? 'Deep Zone' : 'Focus Flow';
-      document.title = `(${formattedTime}) ${modeLabel} • FocusChecker`;
-    } else if (secondsRemaining < totalDurationSeconds && secondsRemaining > 0) {
-      document.title = `(⏸ ${formattedTime}) FocusChecker`;
+      const label = isBreak ? 'Break' : activeMode === 'deep' ? 'Deep work' : INTERVAL_MODE.shortLabel;
+      document.title = `${formattedTime} · ${label} — FocusChecker`;
+    } else if (hasStarted) {
+      document.title = `Paused ${formattedTime} — FocusChecker`;
     } else {
-      document.title = 'FocusChecker — Neuroscience Attention Suite';
+      document.title = 'FocusChecker — Focus timer, breathing resets & attention insights';
     }
-  }, [isActive, secondsRemaining, formattedTime, isBreak, activeMode, totalDurationSeconds]);
+  }, [isActive, formattedTime, isBreak, activeMode, hasStarted]);
 
   return (
     <FocusTimerContext.Provider
       value={{
-        secondsRemaining,
-        totalDurationSeconds,
-        isActive,
-        isBreak,
-        activeMode,
-        selectedDuration,
-        taskName,
-        completedSessionsToday,
-        breaksCount,
-        progressRatio,
-        formattedTime,
-        toggleTimer,
-        pauseTimer,
-        startTimer,
-        resetTimer,
-        takeBreak,
-        setDuration,
-        setMode,
-        setTaskName,
-        handleSaveSession,
+        secondsRemaining, totalDurationSeconds, isActive, isBreak, hasStarted, activeMode, selectedDuration,
+        taskName, breaksCount, progressRatio, formattedTime, pendingReview,
+        pomodoro, pomodoroRound, breakKind, setPomodoro, skipBreak,
+        toggleTimer, pauseTimer, startTimer, resetTimer, finishEarly, takeBreak, setDuration, setMode,
+        setTaskName, saveReview, dismissReview,
       }}
     >
       {children}
@@ -238,8 +451,6 @@ export function FocusTimerProvider({ children, onSessionSaved }: { children: Rea
 
 export function useFocusTimer() {
   const context = useContext(FocusTimerContext);
-  if (!context) {
-    throw new Error('useFocusTimer must be used within a FocusTimerProvider');
-  }
+  if (!context) throw new Error('useFocusTimer must be used within a FocusTimerProvider');
   return context;
 }
