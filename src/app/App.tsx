@@ -393,9 +393,9 @@ function AppContent({
           onOpenAuth={openAuth}
         />
       ) : (
-        <div className="flex flex-col min-h-screen pb-24 lg:pb-6">
+        <div className="flex flex-col min-h-screen pb-24 lg:pb-3">
           {/* Top Header */}
-          <header className="sticky top-0 z-40 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-slate-800/60 px-4 md:px-8 py-2.5 transition-all">
+          <header className="sticky top-0 z-40 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-slate-800/60 px-4 md:px-8 py-1.5 sm:py-2 transition-all">
             <div className="max-w-6xl mx-auto flex items-center justify-between">
               
               {/* Brand and Landing shortcut */}
@@ -516,7 +516,7 @@ function AppContent({
           </header>
 
           {/* Main App Content View */}
-          <main className="max-w-6xl mx-auto w-full px-4 md:px-8 py-4 md:py-6">
+          <main className="max-w-6xl mx-auto w-full px-4 md:px-8 py-2 md:py-3 lg:py-2.5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -555,7 +555,7 @@ function AppContent({
                     </div>
 
                     {/* Dual-Column Desktop Grid matching the 2 screens in reference design! */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6 items-start">
                       
                       {/* Left Column: Tactile Focus Dial */}
                       <div className={`lg:col-span-6 xl:col-span-6 ${mobileDialView === 'atmosphere' ? 'hidden lg:block' : 'block'}`}>
