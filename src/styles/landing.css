@@ -1,0 +1,89 @@
+/* Landing page design tokens + the few things Tailwind can't express. Scoped to .lp */
+.lp {
+  --ink: #0f1f2e;
+  --ink-2: #16293b;
+  --paper: #f2f6f7;
+  --surface: #ffffff;
+  --text: #0f1f2e;
+  --muted: #465a6b;
+  --line: rgba(15, 31, 46, 0.13);
+  --sky: #4cc3ff;
+  --sky-text: #0a6fa8;
+  --mint: #5fe3b0;
+  --amber: #ffb547;
+  --violet: #b3a8ff;
+  --on-ink: #eaf2f6;
+  --on-ink-muted: #a9bccb;
+  --on-ink-line: rgba(255, 255, 255, 0.14);
+  font-family: 'Instrument Sans Variable', 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--paper);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+.dark .lp {
+  --ink: #07111a;
+  --ink-2: #0f1e2b;
+  --paper: #0a1620;
+  --surface: #112230;
+  --text: #e8f0f4;
+  --muted: #9fb2c0;
+  --line: rgba(255, 255, 255, 0.11);
+  --sky-text: #6fd0ff;
+}
+.lp-display {
+  font-family: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', 'Instrument Sans Variable', system-ui, sans-serif;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+.lp a:focus-visible, .lp button:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; border-radius: 10px; }
+
+/* Buttons */
+.lp-btn { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; min-height: 3rem; padding: 0 1.4rem; border-radius: 999px; font-weight: 650; font-size: 1rem; line-height: 1; white-space: nowrap; transition: transform .18s ease, background-color .18s ease, border-color .18s ease; }
+.lp-btn:active { transform: translateY(1px); }
+.lp-btn-primary { background: var(--sky); color: #04202f; }
+.lp-btn-primary:hover { background: #7bd3ff; }
+.lp-btn-mint { background: var(--mint); color: #04271a; }
+.lp-btn-mint:hover { background: #86efc6; }
+.lp-btn-ghost { border: 1px solid var(--on-ink-line); color: var(--on-ink); }
+.lp-btn-ghost:hover { border-color: rgba(255,255,255,.4); }
+.lp-btn-line { border: 1px solid var(--line); color: var(--text); }
+.lp-btn-line:hover { border-color: var(--text); }
+
+/* The breathing pacer (hero) */
+.lp-orb { --s: min(82vw, 30rem); position: relative; width: var(--s); aspect-ratio: 1; }
+.lp-orb-ticks {
+  position: absolute; inset: 0; border-radius: 50%;
+  background:
+    repeating-conic-gradient(from -0.45deg, rgba(255,255,255,.85) 0 0.9deg, transparent 0.9deg 30deg),
+    repeating-conic-gradient(from -0.3deg, rgba(255,255,255,.28) 0 0.6deg, transparent 0.6deg 6deg);
+  -webkit-mask: radial-gradient(closest-side, transparent 91%, #000 91.6%);
+          mask: radial-gradient(closest-side, transparent 91%, #000 91.6%);
+}
+.lp-orb-halo, .lp-orb-core { position: absolute; border-radius: 50%; transform: scale(var(--k, .62)); transition: transform 4s cubic-bezier(.45, 0, .25, 1); }
+.lp-orb-halo { inset: 10%; border: 1px solid rgba(255,255,255,.22); }
+.lp-orb-halo.two { inset: 4%; border-color: rgba(255,255,255,.1); transition-duration: 4.4s; }
+.lp-orb-core {
+  inset: 14%;
+  background: radial-gradient(circle at 34% 28%, #d8fff0 0%, var(--mint) 34%, #2aa4d8 78%, #1a6fae 100%);
+  box-shadow: 0 0 110px 10px rgba(76,195,255,.28), inset 0 -18px 40px rgba(6,40,70,.25);
+}
+.lp-orb[data-hold="true"] .lp-orb-core, .lp-orb[data-hold="true"] .lp-orb-halo { transition-duration: 0s; }
+.lp-orb-label { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: #05222f; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .lp-orb-halo, .lp-orb-core { transition: none; }
+}
+
+/* Decorative dial ring for the closing band */
+.lp-ring-deco {
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from -0.45deg, rgba(255,255,255,.5) 0 0.9deg, transparent 0.9deg 30deg),
+    repeating-conic-gradient(from -0.3deg, rgba(255,255,255,.18) 0 0.6deg, transparent 0.6deg 6deg);
+  -webkit-mask: radial-gradient(closest-side, transparent 93%, #000 93.5%);
+          mask: radial-gradient(closest-side, transparent 93%, #000 93.5%);
+}
+
+/* How-it-works rail */
+.lp-rail { position: relative; }
+@media (min-width: 1024px) { .lp-rail::before { content: ''; position: absolute; left: 22px; right: 22px; top: 22px; height: 1px; background: var(--line); } }
+@media (max-width: 1023px) { .lp-rail::before { content: ''; position: absolute; left: 22px; top: 22px; bottom: 22px; width: 1px; background: var(--line); } }

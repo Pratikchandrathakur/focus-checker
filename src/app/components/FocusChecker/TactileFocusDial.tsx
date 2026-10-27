@@ -80,7 +80,7 @@ export function TactileFocusDial({
           </h3>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          <span className="text-[11px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
             {isBreak ? 'Break' : isActive ? 'In session' : hasStarted ? 'Paused' : 'Ready'}
           </span>
         </div>
@@ -101,7 +101,7 @@ export function TactileFocusDial({
             <Zap size={15} />
           </div>
           <span className="text-[11px] font-semibold">Deep</span>
-          <span className={`text-[9px] ${activeMode === 'deep' ? 'text-white/80' : 'text-slate-400'}`}>
+          <span className={`text-[11px] ${activeMode === 'deep' ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'}`}>
             45 min
           </span>
         </button>
@@ -120,7 +120,7 @@ export function TactileFocusDial({
             <SprintIcon size={16} />
           </div>
           <span className="text-[11px] font-semibold">{INTERVAL_MODE.shortLabel}</span>
-          <span className={`text-[9px] ${activeMode === 'flow' ? 'text-white/80' : 'text-slate-400'}`}>
+          <span className={`text-[11px] ${activeMode === 'flow' ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'}`}>
             {pomodoro.work}/{pomodoro.shortBreak} min
           </span>
         </button>
@@ -140,9 +140,9 @@ export function TactileFocusDial({
           <div className={`p-1 rounded-xl ${activeMode === 'reset' ? 'bg-white/20' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'}`}>
             <Wind size={15} />
           </div>
-          <span className="text-[11px] font-semibold">De-Stress</span>
-          <span className={`text-[9px] ${activeMode === 'reset' ? 'text-white/80' : 'text-slate-400'}`}>
-            Sigh 2m
+          <span className="text-[11px] font-semibold">Breathe</span>
+          <span className={`text-[11px] ${activeMode === 'reset' ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'}`}>
+            2 min reset
           </span>
         </button>
       </div>
@@ -224,7 +224,7 @@ export function TactileFocusDial({
 
           {/* Inner Floating Tactile Dial Disc */}
           <div className="w-30 h-30 sm:w-34 sm:h-34 lg:w-36 lg:h-36 rounded-full clay-dial-rim flex flex-col items-center justify-center p-2 z-10 select-none">
-            <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-0.5">
+            <span className="text-[11px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-0.5">
               {isBreak ? (breakKind === 'long' ? 'Long Break' : 'Short Break') : activeMode === 'deep' ? 'Deep Zone' : `${INTERVAL_MODE.shortLabel} ${Math.min(pomodoroRound + 1, pomodoro.rounds)}/${pomodoro.rounds}`}
             </span>
             
@@ -233,12 +233,12 @@ export function TactileFocusDial({
               {formattedTime}
             </div>
 
-            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
               {isBreak ? `${Math.round(totalDurationSeconds / 60)}m rest` : `${selectedDuration}m target`}
             </span>
 
             {/* Status pill inside dial */}
-            <div className="mt-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-300 border border-sky-100 dark:border-sky-800 flex items-center gap-1">
+            <div className="mt-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-300 border border-sky-100 dark:border-sky-800 flex items-center gap-1">
               <Activity size={9} />
               <span>{isActive ? 'In Session' : hasStarted ? 'Paused' : 'Ready'}</span>
             </div>
@@ -251,7 +251,7 @@ export function TactileFocusDial({
               className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-200/60 dark:border-slate-700/60 shadow-sm"
               aria-label={`Sprint round ${Math.min(pomodoroRound + 1, pomodoro.rounds)} of ${pomodoro.rounds}`}
             >
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mr-0.5 flex items-center gap-1">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-0.5 flex items-center gap-1">
                 <SprintIcon size={12} />
                 <span>Sprint:</span>
               </span>
@@ -268,7 +268,7 @@ export function TactileFocusDial({
                   title={`Round ${i + 1}${i < pomodoroRound ? ' (Completed)' : i === pomodoroRound ? ' (Current)' : ''}`}
                 />
               ))}
-              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 ml-1">
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 ml-1">
                 {Math.min(pomodoroRound + 1, pomodoro.rounds)}/{pomodoro.rounds}
               </span>
             </div>
@@ -298,7 +298,7 @@ export function TactileFocusDial({
                 key={dur}
                 onClick={() => setDuration(dur)}
                 disabled={isActive || hasStarted}
-                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
+                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all ${
                   selectedDuration === dur
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -326,11 +326,11 @@ export function TactileFocusDial({
           className="clay-card-subtle p-1.5 sm:p-2 text-center hover:scale-[1.01] transition-transform"
           title={readinessScore === null ? 'Take a 60-second readiness check' : 'Retake readiness check'}
         >
-          <div className="text-[9px] font-medium text-slate-500 dark:text-slate-400">Readiness</div>
+          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Readiness</div>
           <div className="text-base font-bold text-slate-900 dark:text-white mt-0.5 leading-tight">
             {readinessScore === null ? '—' : `${readinessScore}%`}
           </div>
-          <div className={`text-[9px] font-medium mt-0.5 leading-tight ${
+          <div className={`text-[11px] font-medium mt-0.5 leading-tight ${
             readinessScore === null ? 'text-sky-600 dark:text-sky-400'
             : readinessScore >= 70 ? 'text-emerald-600 dark:text-emerald-400'
             : readinessScore >= 45 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
@@ -340,9 +340,9 @@ export function TactileFocusDial({
         </button>
 
         <div className="clay-card-subtle p-1.5 sm:p-2">
-          <div className="text-[9px] font-medium text-slate-500 dark:text-slate-400">Completed</div>
+          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Completed</div>
           <div className="text-base font-bold text-slate-900 dark:text-white mt-0.5 leading-tight">{sessionsToday}</div>
-          <div className="text-[9px] text-sky-600 dark:text-sky-400 font-medium mt-0.5 leading-tight">{sessionsToday === 1 ? 'Session today' : 'Sessions today'}</div>
+          <div className="text-[11px] text-sky-600 dark:text-sky-400 font-medium mt-0.5 leading-tight">{sessionsToday === 1 ? 'Session today' : 'Sessions today'}</div>
         </div>
       </div>
 
@@ -391,7 +391,7 @@ export function TactileFocusDial({
       <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5 min-w-0">
           <Volume2 size={13} className="text-sky-500 shrink-0" />
-          <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300 truncate">
+          <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 truncate">
             {activeSoundscape !== 'none' ? `${activeSoundscape} Waves` : 'Focus Audio'}
           </span>
         </div>
@@ -400,7 +400,7 @@ export function TactileFocusDial({
           {activeSoundscape !== 'none' && (
             <button
               onClick={() => onToggleSoundscape(activeSoundscape as any)}
-              className="px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-red-500 hover:bg-red-600 text-white flex items-center gap-1 transition-all shadow-sm"
+              className="px-1.5 py-0.5 rounded-lg text-[11px] font-bold bg-red-500 hover:bg-red-600 text-white flex items-center gap-1 transition-all shadow-sm"
               title="Stop Audio immediately"
             >
               Stop
@@ -408,7 +408,7 @@ export function TactileFocusDial({
           )}
           <button
             onClick={() => onToggleSoundscape('gamma')}
-            className={`px-1.5 py-0.5 rounded-lg text-[9px] font-semibold transition-all ${
+            className={`px-1.5 py-0.5 rounded-lg text-[11px] font-semibold transition-all ${
               activeSoundscape === 'gamma'
                 ? 'bg-sky-500 text-white'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
@@ -418,7 +418,7 @@ export function TactileFocusDial({
           </button>
           <button
             onClick={() => onToggleSoundscape('alpha')}
-            className={`px-1.5 py-0.5 rounded-lg text-[9px] font-semibold transition-all ${
+            className={`px-1.5 py-0.5 rounded-lg text-[11px] font-semibold transition-all ${
               activeSoundscape === 'alpha'
                 ? 'bg-purple-500 text-white'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
@@ -440,7 +440,7 @@ function Stepper({ id, label, value, unit, min, max, disabled, onChange }: {
     <div className="flex items-center justify-between gap-2">
       <label htmlFor={id} className="text-[11px] font-medium text-slate-600 dark:text-slate-300">{label}</label>
       <div className="flex items-center gap-1">
-        <button type="button" disabled={disabled || value <= min} onClick={() => onChange(value - 1)} className="w-6 h-6 rounded-lg clay-button flex items-center justify-center text-slate-500 disabled:opacity-40" aria-label={`Decrease ${label}`}>
+        <button type="button" disabled={disabled || value <= min} onClick={() => onChange(value - 1)} className="w-6 h-6 rounded-lg clay-button flex items-center justify-center text-slate-600 dark:text-slate-400 disabled:opacity-40" aria-label={`Decrease ${label}`}>
           <Minus size={11} />
         </button>
         <input
@@ -454,10 +454,10 @@ function Stepper({ id, label, value, unit, min, max, disabled, onChange }: {
           onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n)) onChange(n); }}
           className="w-11 text-center text-xs font-bold font-mono bg-transparent text-slate-900 dark:text-white outline-none rounded-md focus:ring-2 focus:ring-rose-400 disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
         />
-        <button type="button" disabled={disabled || value >= max} onClick={() => onChange(value + 1)} className="w-6 h-6 rounded-lg clay-button flex items-center justify-center text-slate-500 disabled:opacity-40" aria-label={`Increase ${label}`}>
+        <button type="button" disabled={disabled || value >= max} onClick={() => onChange(value + 1)} className="w-6 h-6 rounded-lg clay-button flex items-center justify-center text-slate-600 dark:text-slate-400 disabled:opacity-40" aria-label={`Increase ${label}`}>
           <Plus size={11} />
         </button>
-        <span className="text-[10px] text-slate-400 w-6">{unit}</span>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 w-6">{unit}</span>
       </div>
     </div>
   );
@@ -494,7 +494,7 @@ function PomodoroSettingsPanel({ value, locked, onChange }: {
           <SprintIcon size={14} />
           <span>25 · 5 Sprint Cadence</span>
         </span>
-        <span className="text-[10px] text-slate-400 font-medium">Interval Settings</span>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Interval Settings</span>
       </div>
       <Stepper id="pomo-work" label="Focus" value={value.work} unit="min" min={1} max={180} disabled={locked} onChange={(v) => set({ work: v })} />
       <Stepper id="pomo-short" label="Short break" value={value.shortBreak} unit="min" min={1} max={60} onChange={(v) => set({ shortBreak: v })} />
@@ -504,7 +504,7 @@ function PomodoroSettingsPanel({ value, locked, onChange }: {
         <Toggle id="pomo-auto-break" label="Start breaks automatically" checked={value.autoStartBreaks} onChange={(v) => set({ autoStartBreaks: v })} />
         <Toggle id="pomo-auto-work" label="Start next round automatically" checked={value.autoStartWork} onChange={(v) => set({ autoStartWork: v })} />
       </div>
-      {locked && <p className="text-[10px] text-slate-400">Focus length can change once the current round ends.</p>}
+      {locked && <p className="text-[11px] text-slate-500 dark:text-slate-400">Focus length can change once the current round ends.</p>}
     </div>
   );
 }

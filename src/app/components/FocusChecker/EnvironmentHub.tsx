@@ -63,7 +63,7 @@ export function EnvironmentHub({
             <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
               {phase.greet}{userName ? `, ${userName.split(' ')[0]}` : ''}
             </h3>
-            <p className="text-[10px] text-slate-400">Your focus environment</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Your focus environment</p>
           </div>
         </div>
 
@@ -73,8 +73,8 @@ export function EnvironmentHub({
       {/* Today */}
       <div className="clay-card-subtle p-2.5 sm:p-3 relative overflow-hidden space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Today</span>
-          <span className="text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">Today</span>
+          <span className="text-[11px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
             {phase.label}
           </span>
         </div>
@@ -85,23 +85,23 @@ export function EnvironmentHub({
           </div>
           <div className="min-w-0">
             <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white font-mono flex items-baseline gap-1.5 leading-none">
-              {today.focusMinutes}<span className="text-xs font-normal text-slate-400 font-sans">min focused</span>
+              {today.focusMinutes}<span className="text-xs font-normal text-slate-500 dark:text-slate-400 font-sans">min focused</span>
             </div>
-            <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">{phase.hint}</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium truncate mt-0.5">{phase.hint}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/50 text-center">
           <div>
-            <div className="text-[9px] text-slate-400">Sessions</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">Sessions</div>
             <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">{today.sessions}</div>
           </div>
           <div>
-            <div className="text-[9px] text-slate-400">Breathing resets</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">Breathing resets</div>
             <div className="text-[11px] font-bold text-sky-600 dark:text-sky-400 mt-0.5">{today.resets}</div>
           </div>
           <div>
-            <div className="text-[9px] text-slate-400">Streak</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">Streak</div>
             <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
               {streakDays} {streakDays === 1 ? 'day' : 'days'}
             </div>
@@ -111,9 +111,9 @@ export function EnvironmentHub({
 
       {/* Focus Station / Controls (My home section in image) */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+        <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
           <span>Environment</span>
-          <span className="text-sky-500 text-[10px]">{warmLight || binauralAudioOn ? 'Customised' : 'Default'}</span>
+          <span className="text-sky-500 text-[11px]">{warmLight || binauralAudioOn ? 'Customised' : 'Default'}</span>
         </div>
 
         {/* Daily goal */}
@@ -128,13 +128,13 @@ export function EnvironmentHub({
                 <Target size={15} />
               </div>
               <div>
-                <div className="text-[9px] font-bold">Daily focus goal</div>
+                <div className="text-[11px] font-bold">Daily focus goal</div>
                 <div className="text-xs sm:text-sm font-extrabold font-mono leading-tight">
                   {today.focusMinutes} / {dailyGoalMinutes} min
                 </div>
               </div>
             </div>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/25 text-white">
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/25 text-white">
               {goalPct >= 100 ? 'Goal met' : `${goalPct}%`}
             </span>
           </div>
@@ -149,7 +149,7 @@ export function EnvironmentHub({
           {/* Tile 1: Circadian Lighting */}
           <div className="clay-card-subtle p-2.5 rounded-xl flex flex-col justify-between space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className={`text-[9px] font-bold uppercase ${warmLight ? 'text-amber-500' : 'text-slate-400'}`}>
+              <span className={`text-[11px] font-bold uppercase ${warmLight ? 'text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}>
                 {warmLight ? 'ON' : 'OFF'}
               </span>
 
@@ -175,8 +175,8 @@ export function EnvironmentHub({
               <div className="w-7 h-7 rounded-lg clay-button flex items-center justify-center text-amber-500 mx-auto mb-0.5">
                 <Sun size={15} />
               </div>
-              <div className="text-[10px] font-bold text-slate-900 dark:text-white leading-tight">Warm light</div>
-              <div className="text-[8px] text-slate-400 mt-0.5">Softer screen tint</div>
+              <div className="text-[11px] font-bold text-slate-900 dark:text-white leading-tight">Warm light</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Softer screen tint</div>
             </div>
           </div>
 
@@ -187,8 +187,8 @@ export function EnvironmentHub({
               : 'clay-card-subtle'
           }`}>
             <div className="flex items-center justify-between">
-              <span className={`text-[9px] font-bold uppercase ${
-                binauralAudioOn ? 'text-white' : 'text-slate-400'
+              <span className={`text-[11px] font-bold uppercase ${
+                binauralAudioOn ? 'text-white' : 'text-slate-500 dark:text-slate-400'
               }`}>
                 {binauralAudioOn ? 'ON' : 'OFF'}
               </span>
@@ -218,8 +218,8 @@ export function EnvironmentHub({
                 <Headphones size={16} />
               </div>
               <div className="text-[11px] font-bold">40Hz tone</div>
-              <div className={`text-[9px] mt-0.5 ${
-                binauralAudioOn ? 'text-white/80' : 'text-slate-400'
+              <div className={`text-[11px] mt-0.5 ${
+                binauralAudioOn ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'
               }`}>
                 {activeSoundscape !== 'none' ? 'Active stream' : 'Headphones ready'}
               </div>
@@ -240,11 +240,11 @@ export function EnvironmentHub({
               <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
                 Quick breathing reset
               </div>
-              <div className="text-[9px] text-slate-400">2-minute guided physiological sigh</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">2-minute guided physiological sigh</div>
             </div>
           </div>
 
-          <ChevronRight size={14} className="text-slate-400" />
+          <ChevronRight size={14} className="text-slate-500 dark:text-slate-400" />
         </button>
       </div>
     </div>

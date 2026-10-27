@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Volume2, VolumeX, Headphones, Zap, Sparkles, Waves, CloudRain } from 'lucide-react';
 import { audioEngine } from '../../services/audioEngine';
 import { toast } from 'sonner';
+import { RangeInput } from '../ui/RangeInput';
 
 interface SoundscapesProps {
   activeSoundscape: string;
@@ -15,34 +16,34 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
     {
       id: 'gamma' as const,
       name: '40Hz Gamma Focus',
-      description: 'Binaural carrier for peak cognitive processing and working memory.',
+      description: 'A steady 40Hz binaural beat that many people use for demanding, detail-heavy work. Needs stereo headphones.',
       icon: Zap,
       gradient: 'clay-tile-cyan',
-      tag: 'Deep Coding & Logic',
+      tag: 'Deep work',
     },
     {
       id: 'alpha' as const,
       name: '10Hz Alpha Flow',
-      description: 'A slower 10Hz beat many people find calming for reading and planning.',
+      description: 'A slower 10Hz binaural beat many people find relaxing for reading and planning. Needs stereo headphones.',
       icon: Sparkles,
       gradient: 'clay-tile-violet',
-      tag: 'Reading & Strategy',
+      tag: 'Reading & planning',
     },
     {
       id: 'pink' as const,
       name: 'Broadband Pink Noise',
-      description: 'Deeper than white noise (1/f spectral density), shields intrusive speech.',
+      description: 'Softer and deeper than white noise. Helps cover up background chatter. Works on any speaker.',
       icon: Waves,
       gradient: 'clay-tile-amber',
-      tag: 'Distraction Shield',
+      tag: 'Masks noise',
     },
     {
       id: 'rain' as const,
       name: 'Organic Rain Mask',
-      description: 'Natural frequency spectrum proven to decrease stress hormones.',
+      description: 'Gentle, ever-changing rain that masks distractions. Generated live, so it never loops.',
       icon: CloudRain,
       gradient: 'clay-tile-emerald',
-      tag: 'Calm & Steady',
+      tag: 'Calm',
     },
   ];
 
@@ -50,11 +51,11 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
     if (activeSoundscape === id) {
       audioEngine.stop();
       onSelectPreset('none');
-      toast.info("Audio disabled");
+      toast.info('Sound off');
     } else {
       audioEngine.playPreset(id, volume);
       onSelectPreset(id);
-      toast.success(`Playing ${id === 'gamma' ? '40Hz Gamma' : id === 'alpha' ? '10Hz Alpha' : id} soundscape`);
+      toast.success(`Playing ${id === 'gamma' ? '40Hz focus tone' : id === 'alpha' ? '10Hz relax tone' : id === 'pink' ? 'pink noise' : 'rain'}`);
     }
   };
 
@@ -75,9 +76,9 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
             </div>
             <div>
               <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
-                Neuroscience Soundscapes
+                Focus sounds
               </h3>
-              <p className="text-[10px] text-slate-500">Synthesized locally in real-time — headphones recommended</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Generated live on your device. Works offline.</p>
             </div>
           </div>
 
@@ -96,20 +97,20 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
 
         {/* Master Volume Slider */}
         <div className="clay-card-subtle p-2 sm:p-2.5 rounded-xl flex items-center gap-3">
-          <Volume2 size={16} className="text-slate-500 shrink-0" />
+          <Volume2 size={16} className="text-slate-600 dark:text-slate-400 shrink-0" />
           <div className="flex-1">
             <div className="flex justify-between text-[11px] font-semibold mb-0.5 text-slate-700 dark:text-slate-300">
-              <span>Master Soundscape Volume</span>
+              <label htmlFor="master-volume">Volume</label>
               <span>{Math.round(volume * 100)}%</span>
             </div>
-            <input
-              type="range"
+            <RangeInput
+              id="master-volume"
+              accent="sky"
               min="0"
               max="1"
               step="0.05"
               value={volume}
               onChange={(e) => handleVolumeChange(Number(e.target.value))}
-              className="w-full accent-sky-500 cursor-pointer h-1.5"
             />
           </div>
         </div>
@@ -121,10 +122,12 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
             const isPlaying = activeSoundscape === p.id;
 
             return (
-              <div
+              <button
                 key={p.id}
+                type="button"
                 onClick={() => handleToggle(p.id)}
-                className={`p-3 sm:p-3.5 rounded-xl cursor-pointer transition-all duration-200 border ${
+                aria-pressed={isPlaying}
+                className={`p-3 sm:p-3.5 rounded-xl text-left w-full cursor-pointer transition-all duration-200 border ${
                   isPlaying
                     ? `${p.gradient} scale-[1.01]`
                     : 'clay-button hover:border-slate-300 text-slate-800 dark:text-slate-200'
@@ -134,31 +137,31 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
                   <div className={`p-1.5 rounded-lg ${isPlaying ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
                     <Icon size={16} />
                   </div>
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                    isPlaying ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    isPlaying ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}>
                     {p.tag}
                   </span>
                 </div>
 
                 <h4 className="font-bold text-xs sm:text-sm mb-0.5">{p.name}</h4>
-                <p className={`text-[11px] leading-snug line-clamp-2 ${isPlaying ? 'text-white/85' : 'text-slate-500 dark:text-slate-400'}`}>
+                <p className={`text-xs leading-snug ${isPlaying ? 'text-white/85' : 'text-slate-500 dark:text-slate-400'}`}>
                   {p.description}
                 </p>
 
-                <div className="mt-2.5 flex items-center justify-between text-[10px] font-semibold">
-                  <span>{isPlaying ? 'Currently Active' : 'Tap to Activate'}</span>
-                  <div className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-white animate-pulse' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                <div className="mt-2.5 flex items-center justify-between text-xs font-semibold">
+                  <span>{isPlaying ? 'Playing · tap to stop' : 'Tap to play'}</span>
+                  <div className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-white animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`} />
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
 
         {/* Info callout */}
-        <div className="p-2.5 rounded-xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 text-[10px] text-sky-800 dark:text-sky-300 leading-relaxed">
-          <span className="font-semibold">Binaural Beats Note: </span>
-          Gamma and Alpha presets work through stereo frequency disparity (e.g., 220Hz left, 260Hz right). Wear stereo headphones to hear the beat.
+        <div className="p-2.5 rounded-xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 text-xs text-sky-900 dark:text-sky-200 leading-relaxed">
+          <span className="font-semibold">About the 40Hz and 10Hz tones: </span>
+          Each ear gets a slightly different pitch and your brain hears the difference as a beat, so they only work with stereo headphones. Effects vary from person to person; if a sound bothers you, stop it.
         </div>
       </div>
     </div>

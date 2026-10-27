@@ -1,383 +1,348 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Wind, Play, Pause, RotateCcw, CheckCircle2, ShieldCheck, HeartPulse, Sparkles, Volume2, VolumeX } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Wind, Play, Pause, RotateCcw, CheckCircle2, HeartPulse, Volume2, VolumeX, ShieldAlert } from 'lucide-react';
+import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { BreathingTechnique, StressResetSession } from '../../types';
 import { audioEngine } from '../../services/audioEngine';
+import { RangeInput } from '../ui/RangeInput';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 
 interface StressResetProps {
   onComplete: (session: StressResetSession) => void;
   onClose?: () => void;
 }
 
-type PhaseType = 'inhale1' | 'inhale2' | 'hold' | 'exhale' | 'ready';
+type PhaseType = 'inhale1' | 'inhale2' | 'hold' | 'exhale' | 'hold2' | 'ready';
+type Technique = Extract<BreathingTechnique, 'physiological-sigh' | 'box-breathing'>;
+
+/** A reset is a fixed 2 minutes, whichever technique is picked. */
+const TARGET_SECONDS = 120;
+/** Don't offer "finish early" before this — too short to measure any change. */
+const MIN_SECONDS = 20;
+
+/** Phase order and length in whole seconds. Box breathing has four equal sides. */
+const SEQUENCE: Record<Technique, PhaseType[]> = {
+  'physiological-sigh': ['inhale1', 'inhale2', 'exhale'],
+  'box-breathing': ['inhale1', 'hold', 'exhale', 'hold2'],
+};
+const DURATION: Record<Technique, Partial<Record<PhaseType, number>>> = {
+  'physiological-sigh': { inhale1: 3, inhale2: 2, exhale: 6 },
+  'box-breathing': { inhale1: 4, hold: 4, exhale: 4, hold2: 4 },
+};
+const ORB_SCALE: Record<Technique, Partial<Record<PhaseType, number>>> = {
+  'physiological-sigh': { inhale1: 1.35, inhale2: 1.5, exhale: 0.9 },
+  'box-breathing': { inhale1: 1.5, hold: 1.5, exhale: 0.9, hold2: 0.9 },
+};
+const INSTRUCTION: Record<Technique, Partial<Record<PhaseType, string>>> = {
+  'physiological-sigh': { inhale1: 'Breathe in (nose)', inhale2: 'Top-off sip of air', exhale: 'Long breath out (mouth)' },
+  'box-breathing': { inhale1: 'Breathe in', hold: 'Hold', exhale: 'Breathe out', hold2: 'Hold empty' },
+};
+
+const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 export function StressReset({ onComplete, onClose }: StressResetProps) {
-  const [technique, setTechnique] = useState<BreathingTechnique>('physiological-sigh');
-  const [isActive, setIsActive] = useState<boolean>(false);
+  const [technique, setTechnique] = useState<Technique>('physiological-sigh');
+  const [isActive, setIsActive] = useState(false);
   const [phase, setPhase] = useState<PhaseType>('ready');
-  const [phaseTimeLeft, setPhaseTimeLeft] = useState<number>(0);
-  const [cyclesCompleted, setCyclesCompleted] = useState<number>(0);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [cycles, setCycles] = useState(0);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Self assessment
-  const [stressBefore, setStressBefore] = useState<number>(7);
-  const [stressAfter, setStressAfter] = useState<number>(3);
-  const [isFinished, setIsFinished] = useState<boolean>(false);
+  // Self-assessment: "before" is measured BEFORE the exercise, "after" when it ends.
+  const [showPre, setShowPre] = useState(false);
+  const [stressBefore, setStressBefore] = useState(5);
+  const [stressAfter, setStressAfter] = useState(5);
+  const [isFinished, setIsFinished] = useState(false);
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const totalSecondsRef = useRef<number>(0);
+  // The ticking loop reads from refs so the interval isn't torn down on every phase change.
+  const live = useRef({ phase: 'ready' as PhaseType, left: 0, elapsed: 0, cycles: 0 });
+  const techRef = useRef<Technique>(technique);
+  const soundRef = useRef(soundEnabled);
+  techRef.current = technique;
+  soundRef.current = soundEnabled;
 
-  // Techniques timing profiles in seconds
-  // Physiological Sigh: Inhale 1 (2.5s) -> Inhale 2 top-off (1.5s) -> Exhale slow (6s)
-  // Box Breathing: Inhale (4s) -> Hold (4s) -> Exhale (4s) -> Hold (4s)
-  // 4-7-8: Inhale (4s) -> Hold (7s) -> Exhale (8s)
+  const chime = (kind: 'inhale' | 'hold' | 'exhale') => {
+    if (soundRef.current) audioEngine.playBreathChime(kind);
+  };
+  const chimeFor = (p: PhaseType) => chime(p === 'exhale' ? 'exhale' : p === 'hold' || p === 'hold2' ? 'hold' : 'inhale');
 
-  const handleStart = () => {
-    setIsActive(true);
-    setIsFinished(false);
-    startPhase('inhale1', technique === 'physiological-sigh' ? 3 : 4);
-    if (soundEnabled) audioEngine.playBreathChime('inhale');
+  const enterPhase = (p: PhaseType) => {
+    live.current.phase = p;
+    live.current.left = DURATION[techRef.current][p] ?? 0;
+    chimeFor(p);
   };
 
-  const handlePause = () => {
+  const sync = () => {
+    const l = live.current;
+    setPhase(l.phase);
+    setPhaseTimeLeft(l.left);
+    setElapsed(l.elapsed);
+    setCycles(l.cycles);
+  };
+
+  const finish = () => {
     setIsActive(false);
-    if (timerRef.current) clearInterval(timerRef.current);
+    setIsFinished(true);
+    setStressAfter(stressBefore); // user moves it; we don't guess how they feel
   };
 
-  const handleReset = () => {
-    setIsActive(false);
-    setPhase('ready');
-    setPhaseTimeLeft(0);
-    setCyclesCompleted(0);
-    totalSecondsRef.current = 0;
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  const startPhase = (nextPhase: PhaseType, duration: number) => {
-    setPhase(nextPhase);
-    setPhaseTimeLeft(duration);
-  };
-
-  // Breathing loop step
   useEffect(() => {
     if (!isActive) return;
-
-    timerRef.current = setInterval(() => {
-      totalSecondsRef.current += 1;
-
-      setPhaseTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Advance to next phase according to technique
-          if (technique === 'physiological-sigh') {
-            if (phase === 'inhale1') {
-              if (soundEnabled) audioEngine.playBreathChime('inhale');
-              startPhase('inhale2', 1.5);
-              return 1.5;
-            } else if (phase === 'inhale2') {
-              if (soundEnabled) audioEngine.playBreathChime('exhale');
-              startPhase('exhale', 6);
-              return 6;
-            } else {
-              // Loop back
-              setCyclesCompleted((c) => {
-                const nextC = c + 1;
-                if (nextC >= 5) {
-                  // Recommend completing after 5 cycles (standard sigh protocol)
-                  setIsActive(false);
-                  setIsFinished(true);
-                  toast.success("5 cycles completed! Check your stress level now.");
-                }
-                return nextC;
-              });
-              if (soundEnabled) audioEngine.playBreathChime('inhale');
-              startPhase('inhale1', 3);
-              return 3;
-            }
-          } else if (technique === 'box-breathing') {
-            if (phase === 'inhale1') {
-              if (soundEnabled) audioEngine.playBreathChime('hold');
-              startPhase('hold', 4);
-              return 4;
-            } else if (phase === 'hold') {
-              if (soundEnabled) audioEngine.playBreathChime('exhale');
-              startPhase('exhale', 4);
-              return 4;
-            } else {
-              setCyclesCompleted((c) => c + 1);
-              if (soundEnabled) audioEngine.playBreathChime('inhale');
-              startPhase('inhale1', 4);
-              return 4;
-            }
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
+    const id = setInterval(() => {
+      const l = live.current;
+      l.elapsed += 1;
+      l.left -= 1;
+      if (l.elapsed >= TARGET_SECONDS) {
+        sync();
+        toast.success('2 minutes done. How do you feel now?');
+        finish();
+        return;
+      }
+      if (l.left <= 0) {
+        const seq = SEQUENCE[techRef.current];
+        const next = seq[(seq.indexOf(l.phase) + 1) % seq.length];
+        if (next === seq[0]) l.cycles += 1;
+        enterPhase(next);
+      }
+      sync();
     }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isActive, phase, technique, soundEnabled]);
+  const resetAll = () => {
+    setIsActive(false);
+    live.current = { phase: 'ready', left: 0, elapsed: 0, cycles: 0 };
+    sync();
+  };
 
-  const handleSaveSession = () => {
+  const begin = () => {
+    setShowPre(false);
+    live.current = { phase: 'ready', left: 0, elapsed: 0, cycles: 0 };
+    enterPhase(SEQUENCE[technique][0]);
+    sync();
+    setIsActive(true);
+  };
+
+  const onMainButton = () => {
+    if (isActive) setIsActive(false);
+    else if (live.current.elapsed > 0) setIsActive(true); // resume
+    else setShowPre(true); // first start: safety note + "before" rating
+  };
+
+  const pickTechnique = (t: Technique) => {
+    if (t === technique) return;
+    setTechnique(t);
+    techRef.current = t;
+    resetAll();
+  };
+
+  const handleSave = () => {
+    const secs = Math.max(30, live.current.elapsed);
     const session: StressResetSession = {
       id: Date.now(),
       date: new Date().toISOString(),
       type: 'StressReset',
       technique,
-      durationSeconds: Math.max(30, totalSecondsRef.current),
-      cyclesCompleted: Math.max(1, cyclesCompleted),
+      durationSeconds: secs,
+      cyclesCompleted: Math.max(1, live.current.cycles),
       stressBefore,
       stressAfter,
       score: Math.max(0, Math.round(((stressBefore - stressAfter) / stressBefore) * 100)),
-      note: `${technique === 'physiological-sigh' ? 'Physiological Sigh' : 'Box Breathing'} (${cyclesCompleted} cycles)`,
+      note: `${technique === 'physiological-sigh' ? 'Physiological sigh' : 'Box breathing'} · ${fmt(live.current.elapsed)}`,
     };
-
     onComplete(session);
-    toast.success("Stress reset logged! Nervous system recalibrated.");
-    if (onClose) onClose();
+    toast.success('Breathing reset saved to your journal.');
+    resetAll();
+    setIsFinished(false);
+    onClose?.();
   };
 
-  // Instruction text based on phase
-  const getPhaseInstruction = () => {
-    switch (phase) {
-      case 'inhale1':
-        return technique === 'physiological-sigh'
-          ? 'Deep Inhale (Nose)'
-          : 'Slow Inhale (4s)';
-      case 'inhale2':
-        return 'Sharp Top-Off Inhale';
-      case 'hold':
-        return 'Hold Steadily';
-      case 'exhale':
-        return 'Prolonged Exhale (Mouth)';
-      default:
-        return 'Ready to Begin';
-    }
-  };
-
-  // Scale of the visual breathing orb
-  const getOrbScale = () => {
-    if (!isActive) return 1;
-    if (phase === 'inhale1') return 1.35;
-    if (phase === 'inhale2') return 1.5;
-    if (phase === 'hold') return 1.5;
-    if (phase === 'exhale') return 0.9;
-    return 1;
-  };
+  const delta = stressBefore - stressAfter;
+  const scale = isActive || phase !== 'ready' ? ORB_SCALE[technique][phase] ?? 1 : 1;
+  const phaseSeconds = DURATION[technique][phase] ?? 0.4;
+  const started = elapsed > 0;
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="clay-card p-3.5 sm:p-4 lg:p-4 relative">
-        
+      <div className="clay-card p-4 sm:p-5 relative">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2.5 sm:mb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
               <Wind size={18} />
             </div>
             <div>
-              <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
-                Stress De-escalation
-              </h3>
-              <p className="text-[10px] text-slate-500">Neuroscience autonomic reset</p>
+              <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">2-minute breathing reset</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Slow your breathing to feel calmer.</p>
             </div>
           </div>
-
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-1.5 rounded-xl clay-button text-slate-600 dark:text-slate-300"
-            title="Toggle chime tones"
+            aria-pressed={soundEnabled}
+            aria-label={soundEnabled ? 'Mute breathing chimes' : 'Unmute breathing chimes'}
+            title={soundEnabled ? 'Mute chimes' : 'Unmute chimes'}
+            className="w-10 h-10 rounded-xl clay-button text-slate-600 dark:text-slate-300 flex items-center justify-center"
           >
-            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
         </div>
 
-        {/* Technique Switcher Tabs */}
-        <div className="grid grid-cols-2 gap-2 mb-2.5 sm:mb-3">
-          <button
-            onClick={() => {
-              setTechnique('physiological-sigh');
-              handleReset();
-            }}
-            className={`p-2 sm:p-2.5 rounded-xl text-xs font-semibold transition-all ${
-              technique === 'physiological-sigh'
-                ? 'clay-tile-emerald'
-                : 'clay-button text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            Physiological Sigh
-            <span className="block text-[9px] font-normal opacity-85 mt-0.5">Two inhales, long exhale</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setTechnique('box-breathing');
-              handleReset();
-            }}
-            className={`p-2 sm:p-2.5 rounded-xl text-xs font-semibold transition-all ${
-              technique === 'box-breathing'
-                ? 'clay-tile-cyan'
-                : 'clay-button text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            Box Breathing
-            <span className="block text-[9px] font-normal opacity-85 mt-0.5">Equal 4-second phases</span>
-          </button>
+        {/* Technique */}
+        <div className="grid grid-cols-2 gap-2 mb-3" role="group" aria-label="Breathing technique">
+          {([
+            ['physiological-sigh', 'Physiological sigh', 'Two inhales, long exhale', 'clay-tile-emerald'],
+            ['box-breathing', 'Box breathing', 'In, hold, out, hold · 4s each', 'clay-tile-cyan'],
+          ] as const).map(([id, name, sub, active]) => (
+            <button
+              key={id}
+              onClick={() => pickTechnique(id)}
+              aria-pressed={technique === id}
+              className={`p-2.5 rounded-xl text-sm font-semibold transition-all text-center ${
+                technique === id ? active : 'clay-button text-slate-700 dark:text-slate-200'
+              }`}
+            >
+              {name}
+              <span className={`block text-xs font-normal mt-0.5 ${technique === id ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'}`}>{sub}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Central Breathing Orb */}
-        <div className="relative py-2 sm:py-3.5 flex flex-col items-center justify-center">
-          
-          {/* Animated concentric ripples */}
-          <div className="relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center">
-            
-            {/* Ambient pulse ring */}
+        {/* Orb */}
+        <div className="relative py-3 flex flex-col items-center justify-center">
+          <div className="relative w-48 h-48 flex items-center justify-center" role="img" aria-label={started ? `${INSTRUCTION[technique][phase] ?? 'Breathe'}, ${phaseTimeLeft} seconds` : 'Breathing guide, not started'}>
             <motion.div
-              animate={{
-                scale: getOrbScale() * 1.15,
-                opacity: isActive ? 0.35 : 0.1,
-              }}
-              transition={{ duration: phase === 'exhale' ? 6 : 2.5, ease: 'easeInOut' }}
+              animate={{ scale: scale * 1.15, opacity: isActive ? 0.35 : 0.12 }}
+              transition={{ duration: phaseSeconds, ease: 'easeInOut' }}
               className="absolute inset-0 rounded-full bg-emerald-300 dark:bg-emerald-600 blur-xl"
             />
-
-            {/* Middle tactile orb container */}
             <motion.div
-              animate={{
-                scale: getOrbScale(),
-              }}
-              transition={{ duration: phase === 'exhale' ? 6 : 2.5, ease: 'easeInOut' }}
-              className="w-34 h-34 sm:w-38 sm:h-38 rounded-full clay-dial-rim flex flex-col items-center justify-center text-center p-3 z-10 select-none shadow-xl"
+              animate={{ scale }}
+              transition={{ duration: phaseSeconds, ease: 'easeInOut' }}
+              className="w-36 h-36 rounded-full clay-dial-rim flex flex-col items-center justify-center text-center p-3 z-10 select-none shadow-xl"
             >
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-0.5">
-                {getPhaseInstruction()}
+              <span className="text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400 leading-tight mb-1">
+                {started ? INSTRUCTION[technique][phase] ?? 'Breathe' : 'Ready'}
               </span>
-
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-mono leading-none">
-                {isActive ? `${phaseTimeLeft}s` : 'START'}
+              <div className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono leading-none">
+                {started ? phaseTimeLeft : '2:00'}
               </div>
-
-              <span className="text-[10px] text-slate-400 mt-0.5">
-                Cycle {cyclesCompleted}/5
+              <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {started ? `${fmt(TARGET_SECONDS - elapsed)} left` : 'Press start'}
               </span>
             </motion.div>
           </div>
+          <div className="w-full max-w-[14rem] h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden mt-2" aria-hidden>
+            <div className="h-full bg-emerald-500 transition-[width] duration-1000 ease-linear" style={{ width: `${(elapsed / TARGET_SECONDS) * 100}%` }} />
+          </div>
         </div>
 
-        {/* Science Tip Pill */}
-        <div className="clay-card-subtle p-2.5 mb-2.5 sm:mb-3 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-          <span className="font-semibold text-emerald-600 dark:text-emerald-400">Why it works: </span>
+        {/* Hint */}
+        <p className="clay-card-subtle p-3 mb-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+          <span className="font-semibold text-emerald-700 dark:text-emerald-400">How it works: </span>
           {technique === 'physiological-sigh'
-            ? 'A double inhale followed by a slow exhale helps activate the parasympathetic nervous system.'
-            : 'Equal 4-second phases provide steady cognitive rhythm and heart-rate coherence.'}
-        </div>
+            ? 'Breathe in through your nose, add a second short sip of air, then let it all out slowly through your mouth. Many people find the long exhale calming.'
+            : 'Follow the four equal sides of the box: in, hold, out, hold. The steady rhythm gives your mind something simple to follow.'}
+        </p>
 
         {/* Controls */}
         <div className="flex items-center justify-center gap-2.5">
           <button
-            onClick={handleReset}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300"
-            title="Reset"
+            onClick={resetAll}
+            disabled={!started}
+            aria-label="Restart"
+            title="Restart"
+            className="w-11 h-11 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300 disabled:opacity-40"
           >
-            <RotateCcw size={15} />
+            <RotateCcw size={16} />
           </button>
-
           <button
-            onClick={isActive ? handlePause : handleStart}
-            className="flex-1 py-2.5 sm:py-3 rounded-xl clay-tile-emerald flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm shadow-md"
+            onClick={onMainButton}
+            className="flex-1 py-3 rounded-xl clay-tile-emerald flex items-center justify-center gap-2 font-semibold text-sm shadow-md"
           >
             {isActive ? (
-              <>
-                <Pause size={16} /> Pause Breathwork
-              </>
+              <><Pause size={16} /> Pause</>
+            ) : started ? (
+              <><Play size={16} fill="currentColor" /> Resume</>
             ) : (
-              <>
-                <Play size={16} fill="currentColor" /> Begin De-escalation
-              </>
+              <><Play size={16} fill="currentColor" /> Start 2-minute reset</>
             )}
           </button>
-
-          {cyclesCompleted >= 2 && (
+          {elapsed >= MIN_SECONDS && (
             <button
-              onClick={() => setIsFinished(true)}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl clay-button text-emerald-600 flex items-center justify-center"
-              title="Log outcome"
+              onClick={() => { setIsActive(false); setIsFinished(true); setStressAfter(stressBefore); }}
+              aria-label="Finish and rate how I feel"
+              title="Finish and rate how I feel"
+              className="w-11 h-11 rounded-xl clay-button text-emerald-600 dark:text-emerald-400 flex items-center justify-center"
             >
-              <CheckCircle2 size={17} />
+              <CheckCircle2 size={18} />
             </button>
           )}
         </div>
-
-        {/* Post-breathwork outcome modal */}
-        <AnimatePresence>
-          {isFinished && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="clay-card max-w-sm w-full p-6 space-y-4"
-              >
-                <div className="text-center">
-                  <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mx-auto mb-2">
-                    <HeartPulse size={24} />
-                  </div>
-                  <h4 className="font-bold text-slate-900 dark:text-white">State Recalibration</h4>
-                  <p className="text-xs text-slate-500">Notice the physiological shift in your heart rate and jaw tension</p>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-medium mb-1">
-                    <span>Stress Level Before:</span>
-                    <span className="font-bold text-amber-600">{stressBefore}/10</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={stressBefore}
-                    onChange={(e) => setStressBefore(Number(e.target.value))}
-                    className="w-full accent-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-medium mb-1">
-                    <span>Stress Level Right Now:</span>
-                    <span className="font-bold text-emerald-600">{stressAfter}/10</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={stressAfter}
-                    onChange={(e) => setStressAfter(Number(e.target.value))}
-                    className="w-full accent-emerald-500"
-                  />
-                </div>
-
-                <div className="pt-2 flex gap-2">
-                  <button
-                    onClick={() => setIsFinished(false)}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold clay-button text-slate-600"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={handleSaveSession}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold clay-tile-emerald"
-                  >
-                    Save & Return to Work
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* Before you start: safety note + "before" rating */}
+      <Dialog open={showPre} onOpenChange={setShowPre}>
+        <DialogContent className="clay-card border-0 max-w-sm p-6 gap-4">
+          <div className="text-center space-y-1">
+            <DialogTitle className="text-base font-bold text-slate-900 dark:text-white text-center">Before you start</DialogTitle>
+            <DialogDescription className="text-sm text-slate-600 dark:text-slate-300 text-center">
+              How stressed do you feel right now? We'll compare it with how you feel afterwards.
+            </DialogDescription>
+          </div>
+          <div>
+            <div className="flex justify-between text-sm font-medium mb-1">
+              <label htmlFor="stress-before" className="text-slate-700 dark:text-slate-200">Stress right now</label>
+              <span className="font-bold text-amber-600 dark:text-amber-400">{stressBefore}/10</span>
+            </div>
+            <RangeInput id="stress-before" accent="amber" min={1} max={10} value={stressBefore} onChange={(e) => setStressBefore(Number(e.target.value))} />
+            <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400"><span>Calm</span><span>Very stressed</span></div>
+          </div>
+          <p className="flex gap-2 text-xs text-slate-600 dark:text-slate-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/50 rounded-xl p-3 leading-relaxed">
+            <ShieldAlert size={16} className="shrink-0 text-amber-600 mt-0.5" />
+            <span>FocusChecker is a productivity tool, not a medical device. Breathe gently. If you feel dizzy, lightheaded or uncomfortable, stop and breathe normally.</span>
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setShowPre(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold clay-button text-slate-700 dark:text-slate-200">Cancel</button>
+            <button onClick={begin} className="flex-1 py-2.5 rounded-xl text-sm font-semibold clay-tile-emerald">Start</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* After: rate how you feel now, see the change */}
+      <Dialog open={isFinished} onOpenChange={(open) => { setIsFinished(open); if (!open) resetAll(); }}>
+        <DialogContent className="clay-card border-0 max-w-sm p-6 gap-4">
+          <div className="text-center space-y-1">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mx-auto mb-1">
+              <HeartPulse size={24} />
+            </div>
+            <DialogTitle className="text-base font-bold text-slate-900 dark:text-white text-center">How do you feel now?</DialogTitle>
+            <DialogDescription className="text-sm text-slate-600 dark:text-slate-300 text-center">
+              You breathed for {fmt(elapsed)}. Rate your stress right now.
+            </DialogDescription>
+          </div>
+          <div>
+            <div className="flex justify-between text-sm font-medium mb-1">
+              <label htmlFor="stress-after" className="text-slate-700 dark:text-slate-200">Stress right now</label>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">{stressAfter}/10</span>
+            </div>
+            <RangeInput id="stress-after" accent="emerald" min={1} max={10} value={stressAfter} onChange={(e) => setStressAfter(Number(e.target.value))} />
+          </div>
+          <div className="clay-card-subtle rounded-xl p-3 text-center text-sm" aria-live="polite">
+            <span className="text-slate-500 dark:text-slate-400">Before </span><b className="text-amber-600 dark:text-amber-400">{stressBefore}</b>
+            <span className="text-slate-500 dark:text-slate-400 mx-2">→</span>
+            <span className="text-slate-500 dark:text-slate-400">Now </span><b className="text-emerald-600 dark:text-emerald-400">{stressAfter}</b>
+            <div className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
+              {delta > 0 ? `${delta} point${delta === 1 ? '' : 's'} lower` : delta === 0 ? 'No change. That is useful to know too.' : `${-delta} point${delta === -1 ? '' : 's'} higher`}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setIsFinished(false); resetAll(); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold clay-button text-slate-700 dark:text-slate-200">Don't save</button>
+            <button onClick={handleSave} className="flex-1 py-2.5 rounded-xl text-sm font-semibold clay-tile-emerald">Save and continue</button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

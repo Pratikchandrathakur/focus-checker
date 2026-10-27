@@ -1,16 +1,53 @@
 {
-  "name": "FocusChecker",
+  "id": "/app",
+  "name": "FocusChecker — Focus timer & breathing resets",
   "short_name": "FocusChecker",
-  "description": "Focus timer, breathing resets and attention insights.",
-  "start_url": "/app",
+  "description": "Focus timer, 2-minute breathing resets, readiness check-ins, focus sounds and attention insights. Private and works offline.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/app?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#edf3fb",
-  "theme_color": "#0ea5e9",
+  "theme_color": "#edf3fb",
+  "categories": ["productivity", "health", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start a focus block",
+      "short_name": "Focus",
+      "url": "/app?source=shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "2-minute breathing reset",
+      "short_name": "Breathe",
+      "url": "/app/breathe?source=shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Readiness check",
+      "short_name": "Readiness",
+      "url": "/app/readiness?source=shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Focus sounds",
+      "short_name": "Sounds",
+      "url": "/app/sounds?source=shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/wide.webp", "sizes": "1280x800", "type": "image/webp", "form_factor": "wide", "label": "Focus dial and today panel" },
+    { "src": "/screenshots/narrow.webp", "sizes": "780x1688", "type": "image/webp", "form_factor": "narrow", "label": "Focus dial on mobile" }
   ]
 }

@@ -1,24 +1,26 @@
 import React from 'react';
-import { 
-  Zap, 
-  Wind, 
-  Headphones, 
-  Activity, 
-  ShieldCheck, 
-  ArrowRight, 
-  Sparkles, 
-  Fingerprint, 
-  CheckCircle2, 
-  Brain, 
-  Clock, 
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource-variable/instrument-sans';
+import '../../../styles/landing.css';
+import {
+  Zap,
+  Wind,
+  Headphones,
+  ShieldCheck,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
   TrendingUp,
-  Moon,
   Compass,
   Check,
   Lock,
-  ChevronDown,
+  Plus,
+  Moon,
+  Sun,
+  WifiOff,
 } from 'lucide-react';
 import { SITE, PRICING, FREE_FEATURES, PRO_FEATURES } from '../../config';
+import { InstallAppButton } from '../InstallAppButton';
 
 interface LandingPageProps {
   onEnterApp: () => void;
@@ -26,16 +28,26 @@ interface LandingPageProps {
   onOpenStressReset: () => void;
   onNavigate: (path: string) => void;
   onOpenAuth: (mode: 'login' | 'register') => void;
+  darkMode?: boolean;
+  onToggleDark?: () => void;
 }
 
 const FAQ = [
   {
     q: 'Is it really free?',
-    a: 'Yes. The timer, breathing resets, readiness check-ins, soundscapes and 7-day analytics are free with no account. Pro adds sync and deeper insights for people who use it every day.',
+    a: 'Yes. The timer, breathing resets, readiness check-ins, focus sounds, analytics and journal are free, and you can use them without an account. A paid Pro plan for people who use FocusChecker every day is coming later.',
+  },
+  {
+    q: 'Do I need an account?',
+    a: 'No. Open the app and press start. Create a free account only if you want your journal saved to the cloud so you can open it on other devices.',
   },
   {
     q: 'Where is my data stored?',
-    a: 'In your browser, on your device. Nothing is uploaded. You can export it as JSON or CSV, or delete it, from the Journal at any time.',
+    a: 'On your device, in your browser. If you sign in, your journal is also saved to your account so it can follow you between devices. You can export everything as JSON or CSV, or delete it, from the Journal at any time. There are no ads and no tracking.',
+  },
+  {
+    q: 'Does it work offline? Can I install it?',
+    a: 'Yes to both. After your first visit the app works without a connection, and all sound is generated in your browser. In Chrome, Edge or on Android, use the Install app button. On iPhone or iPad, tap Share, then Add to Home Screen.',
   },
   {
     q: 'Do I need headphones?',
@@ -43,17 +55,102 @@ const FAQ = [
   },
   {
     q: 'Is this a medical or therapy app?',
-    a: 'No. FocusChecker is a productivity tool. The breathing exercises are for general wellbeing and are not a treatment for any condition.',
+    a: 'No. FocusChecker is a productivity tool. The breathing exercises are for general wellbeing and are not a treatment for any condition. Stop any exercise that makes you uncomfortable.',
   },
-  {
-    q: 'Does it work offline?',
-    a: 'Yes. Once loaded, the app works without a connection. All sound is generated in your browser, so there are no audio files to download. You can also install it to your home screen or desktop.',
-  },
+];
+
+const STEPS = [
+  { icon: Compass, color: 'var(--sky)', title: 'Check in', text: 'Rate how you feel and how you slept. Get a readiness score and a block length that fits.', path: '/app/readiness' },
+  { icon: Wind, color: 'var(--mint)', title: 'Reset if needed', text: 'Stressed? A guided 2-minute breathing exercise, with a before-and-after rating.', path: '/app/breathe' },
+  { icon: Clock, color: 'var(--amber)', title: 'Focus', text: 'Start the timer, add a sound, and take breaks that pause your progress.', path: '/app' },
+  { icon: TrendingUp, color: 'var(--violet)', title: 'Learn', text: 'Rate each session in seconds. See your best time of day and ideal break length.', path: '/app/analytics' },
+];
+
+/** The four sides of box breathing, 4 seconds each. Matches the in-app pacer. */
+const BREATH = [
+  { label: 'Breathe in', k: 1 },
+  { label: 'Hold', k: 1 },
+  { label: 'Breathe out', k: 0.62 },
+  { label: 'Hold empty', k: 0.62 },
 ];
 
 function proCta() {
   if (PRICING.waitlistUrl) return PRICING.waitlistUrl;
   return `mailto:${SITE.supportEmail}?subject=${encodeURIComponent('FocusChecker Pro waitlist')}&body=${encodeURIComponent('Please let me know when Pro launches.')}`;
+}
+
+/** Live box-breathing pacer: the product's most characteristic moment, running on the page. */
+function BreathOrb() {
+  const [on, setOn] = React.useState(false);
+  const [t, setT] = React.useState(0);
+
+  React.useEffect(() => {
+    const raf = requestAnimationFrame(() => setOn(true));
+    const id = window.setInterval(() => setT((v) => v + 1), 1000);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearInterval(id);
+    };
+  }, []);
+
+  const phase = BREATH[Math.floor(t / 4) % 4];
+  const sec = 4 - (t % 4);
+  const k = on ? phase.k : 0.62;
+
+  return (
+    <div
+      className="lp-orb mx-auto"
+      role="img"
+      aria-label="A live box breathing pacer: breathe in for 4 seconds, hold for 4, breathe out for 4, hold for 4."
+      style={{ ['--k' as string]: k }}
+    >
+      <div className="lp-orb-ticks" aria-hidden="true" />
+      <div className="lp-orb-halo two" aria-hidden="true" />
+      <div className="lp-orb-halo" aria-hidden="true" />
+      <div className="lp-orb-core" aria-hidden="true" />
+      <div className="lp-orb-label" aria-hidden="true">
+        <span className="lp-display text-2xl sm:text-3xl">{phase.label}</span>
+        <span className="text-base font-semibold tabular-nums mt-1 opacity-80">{sec}</span>
+      </div>
+    </div>
+  );
+}
+
+function Waveform() {
+  const bars = [22, 38, 30, 54, 42, 64, 48, 72, 40, 58, 34, 66, 52, 44, 70, 36, 56, 28, 46, 60, 32, 50, 24, 40];
+  return (
+    <div className="flex items-end gap-[3px] h-16" aria-hidden="true">
+      {bars.map((h, i) => (
+        <span key={i} className="flex-1 rounded-full" style={{ height: `${h}%`, background: 'var(--violet)', opacity: 0.35 + (h / 100) * 0.65 }} />
+      ))}
+    </div>
+  );
+}
+
+function DayBars() {
+  const bars = [30, 44, 70, 92, 100, 78, 42, 34, 54, 64, 48, 28];
+  return (
+    <div aria-hidden="true">
+      <div className="flex items-end gap-1.5 h-20">
+        {bars.map((h, i) => (
+          <span key={i} className="flex-1 rounded-md" style={{ height: `${h}%`, background: i === 4 ? 'var(--amber)' : 'var(--line)' }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MiniDial() {
+  const r = 62;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg viewBox="0 0 160 160" className="w-36 h-36 shrink-0" aria-hidden="true">
+      <circle cx="80" cy="80" r={r} fill="none" stroke="var(--line)" strokeWidth="10" />
+      <circle cx="80" cy="80" r={r} fill="none" stroke="var(--amber)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${c * 0.72} ${c}`} transform="rotate(-90 80 80)" />
+      <text x="80" y="82" textAnchor="middle" className="lp-display" style={{ fontSize: 30, fill: 'var(--text)' }}>25:00</text>
+      <text x="80" y="104" textAnchor="middle" style={{ fontSize: 12, fill: 'var(--muted)', fontWeight: 600 }}>Sprint</text>
+    </svg>
+  );
 }
 
 export function LandingPage({
@@ -62,337 +159,408 @@ export function LandingPage({
   onOpenStressReset,
   onNavigate,
   onOpenAuth,
+  darkMode,
+  onToggleDark,
 }: LandingPageProps) {
   const [openFaq, setOpenFaq] = React.useState<number | null>(0);
   const [yearly, setYearly] = React.useState(true);
+  void onOpenQuickCheck;
+  void onOpenStressReset;
+
+  /** Real <a href> for in-app navigation (middle-click, copy link and screen readers all work). */
+  const link = (path: string) => ({
+    href: path,
+    onClick: (e: React.MouseEvent) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      onNavigate(path);
+    },
+  });
+
+  const yearlySave = Math.round((1 - PRICING.proYearly / (PRICING.proMonthly * 12)) * 100);
+  const shell = 'max-w-6xl mx-auto px-5 sm:px-8';
+  const h2 = 'lp-display text-4xl sm:text-5xl leading-[1.02]';
+  const cardBase = 'rounded-[28px] p-7 sm:p-8 flex flex-col gap-5 border';
+
   return (
-    <div className="w-full min-h-screen clay-canvas text-slate-900 dark:text-white transition-colors duration-300">
-      
-      {/* Top Navigation */}
-      <header className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl clay-tile-cyan flex items-center justify-center shadow-md">
-            <Zap size={20} className="text-white" />
-          </div>
-          <div>
-            <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
-              Focus<span className="text-sky-500">Checker</span>
+    <div className="lp w-full min-h-screen">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:rounded-xl focus:bg-white focus:text-slate-900 focus:shadow-lg"
+      >
+        Skip to content
+      </a>
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 backdrop-blur-xl border-b" style={{ background: 'color-mix(in srgb, var(--ink) 94%, transparent)', borderColor: 'var(--on-ink-line)', color: 'var(--on-ink)' }}>
+        <div className={`${shell} h-16 flex items-center justify-between gap-3`}>
+          <a {...link('/')} className="flex items-center gap-2.5 shrink-0" aria-label="FocusChecker home">
+            <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'var(--sky)' }}>
+              <Zap size={18} style={{ color: '#04202f' }} />
             </span>
-
-          </div>
-        </div>
-
-        <nav className="flex items-center gap-2 sm:gap-3">
-          <a
-            href="#pricing"
-            className="hidden sm:inline-block px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-sky-600"
-          >
-            Pricing
+            <span className="lp-display text-lg">FocusChecker</span>
           </a>
-          <a
-            href="#faq"
-            className="hidden sm:inline-block px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-sky-600"
-          >
-            FAQ
-          </a>
-          <button
-            onClick={() => onOpenAuth('login')}
-            className="px-4 py-2 rounded-xl text-xs font-semibold clay-button text-slate-700 dark:text-slate-300"
-          >
-            Sign In
-          </button>
-          <button
-            onClick={() => onOpenAuth('register')}
-            className="px-4 py-2 rounded-xl text-xs font-semibold clay-tile-cyan"
-          >
-            Create Account
-          </button>
-        </nav>
-      </header>
 
-      {/* Hero Section */}
-      <section className="max-w-6xl mx-auto px-6 pt-10 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        
-        {/* Left Column: Headline & Action */}
-        <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-          
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full clay-card-subtle text-xs font-semibold text-sky-600 dark:text-sky-400">
-            <Sparkles size={14} />
-            <span>Free • No sign-up • Works offline</span>
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-slate-900 dark:text-white">
-            Focus deeper. <br />
-            <span className="bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-600 bg-clip-text text-transparent">
-              Reset faster when you're stressed.
+          <nav className="flex items-center gap-1 sm:gap-2" aria-label="Site">
+            {[['#how', 'How it works'], ['#pricing', 'Pricing'], ['#faq', 'FAQ']].map(([href, label]) => (
+              <a key={href} href={href} className="hidden md:inline-block px-3 py-2 text-sm font-semibold rounded-lg" style={{ color: 'var(--on-ink-muted)' }}>
+                {label}
+              </a>
+            ))}
+            <span className="hidden lg:inline-flex">
+              <InstallAppButton variant="pill" className="lp-btn lp-btn-ghost !min-h-10 !px-4 !text-sm" />
             </span>
-          </h1>
-
-          <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
-            Don't force focus when you're running on empty. FocusChecker checks how ready you are, guides a 2-minute breathing reset when you need one, plays focus sounds, and learns from every session when you work best.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-3.5 justify-center lg:justify-start pt-2">
-            <button
-              onClick={onEnterApp}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl clay-tile-cyan font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl hover:scale-[1.02] transition-transform"
-            >
-              <Fingerprint size={20} />
-              Start focusing — it's free
-            </button>
-
-            <button
-              onClick={onOpenStressReset}
-              className="w-full sm:w-auto px-6 py-4 rounded-2xl clay-tile-emerald font-bold text-sm flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-transform"
-            >
-              <Wind size={18} />
-              Try 2-Min Stress Reset
-            </button>
-          </div>
-
-          {/* Micro trust indicators */}
-          <div className="pt-4 flex items-center justify-center lg:justify-start gap-6 text-xs text-slate-500 font-medium">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 size={15} className="text-emerald-500" />
-              <span>Private: data stays on your device</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 size={15} className="text-emerald-500" />
-              <span>No ads, no account needed</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Interactive Tactile Preview Card (matching the image) */}
-        <div className="lg:col-span-5 flex justify-center">
-          <div className="clay-card p-6 w-full max-w-sm rounded-[32px] relative shadow-2xl space-y-5">
-            
-            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-sky-500" /> App preview
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px]">
-                Example
-              </span>
-            </div>
-
-            {/* Mini Dial Display */}
-            <div className="w-48 h-48 rounded-full clay-dial-rim mx-auto flex flex-col items-center justify-center shadow-lg my-2">
-              <span className="text-[10px] font-bold uppercase text-slate-400">Target Time</span>
-              <div className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono mt-0.5">
-                45:00
-              </div>
-              <span className="text-[11px] text-sky-500 font-semibold mt-1">Deep Work Block</span>
-            </div>
-
-            {/* Quick Metrics */}
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="clay-card-subtle p-3">
-                <div className="text-[10px] text-slate-400">Readiness Score</div>
-                <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">94%</div>
-              </div>
-              <div className="clay-card-subtle p-3">
-                <div className="text-[10px] text-slate-400">Attention Span</div>
-                <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">48 min</div>
-              </div>
-            </div>
-
-            {/* Tactile Button */}
-            <button
-              onClick={onEnterApp}
-              className="w-full py-3 rounded-2xl clay-tile-cyan font-bold text-xs flex items-center justify-center gap-2"
-            >
-              Enter Focus Experience <ArrowRight size={16} />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* 4 Pillars Section */}
-      <section className="max-w-6xl mx-auto px-6 py-16 border-t border-slate-200/60 dark:border-slate-800/60">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-xs font-bold uppercase tracking-wider text-sky-500">
-            What's inside
-          </span>
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mt-1">
-            Built around how attention actually works
-          </h2>
-          <p className="text-sm text-slate-500 mt-2">
-            No motivational quotes. Just a few simple tools that help you start, stay focused and recover — and data that shows you what's working.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          
-          {/* Pillar 1 */}
-          <div className="clay-card p-6 space-y-3">
-            <div className="w-12 h-12 rounded-2xl clay-tile-cyan flex items-center justify-center text-white">
-              <Wind size={22} />
-            </div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">
-              2-Minute Breathing Reset
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Guided physiological sighs and box breathing with a visual pacer. Rate your stress before and after to see what helps you.
-            </p>
-          </div>
-
-          {/* Pillar 2 */}
-          <div className="clay-card p-6 space-y-3">
-            <div className="w-12 h-12 rounded-2xl clay-tile-amber flex items-center justify-center text-white">
-              <Clock size={22} />
-            </div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">
-              Tactile Focus Dial
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Deep work and 25 · 5 sprint blocks from 15 to 90 minutes, breaks that pause your progress, and a floating timer that follows you across tabs.
-            </p>
-          </div>
-
-          {/* Pillar 3 */}
-          <div className="clay-card p-6 space-y-3">
-            <div className="w-12 h-12 rounded-2xl clay-tile-violet flex items-center justify-center text-white">
-              <Headphones size={22} />
-            </div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">
-              Focus Soundscapes
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              40Hz and 10Hz binaural tones, pink noise and rain — generated live in your browser, so they work offline and never loop.
-            </p>
-          </div>
-
-          {/* Pillar 4 */}
-          <div className="clay-card p-6 space-y-3">
-            <div className="w-12 h-12 rounded-2xl clay-tile-emerald flex items-center justify-center text-white">
-              <TrendingUp size={22} />
-            </div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">
-              Your Attention Patterns
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Rate each session in seconds. FocusChecker shows your average attention span, best time of day and a break interval that suits you.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="max-w-5xl mx-auto px-6 py-16 border-t border-slate-200/60 dark:border-slate-800/60 scroll-mt-6">
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <span className="text-xs font-bold uppercase tracking-wider text-sky-500">Pricing</span>
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mt-1">Free to use. Pro when you're hooked.</h2>
-          <div className="inline-flex mt-5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl text-xs font-semibold">
-            <button onClick={() => setYearly(false)} className={`px-4 py-1.5 rounded-xl ${!yearly ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500'}`}>Monthly</button>
-            <button onClick={() => setYearly(true)} className={`px-4 py-1.5 rounded-xl ${yearly ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500'}`}>
-              Yearly <span className="text-emerald-600 dark:text-emerald-400">−{Math.round((1 - PRICING.proYearly / (PRICING.proMonthly * 12)) * 100)}%</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="clay-card p-7 space-y-5 flex flex-col">
-            <div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Free</h3>
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-slate-900 dark:text-white">{PRICING.currency}0</span>
-                <span className="text-sm text-slate-500">forever</span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">Everything you need to focus every day.</p>
-            </div>
-            <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-300 flex-1">
-              {FREE_FEATURES.map((f) => (
-                <li key={f} className="flex gap-2.5"><Check size={16} className="text-emerald-500 shrink-0 mt-0.5" />{f}</li>
-              ))}
-            </ul>
-            <button onClick={onEnterApp} className="w-full py-3 rounded-2xl clay-button font-bold text-sm text-slate-800 dark:text-slate-100">
-              Start free
-            </button>
-          </div>
-
-          <div className="clay-card p-7 space-y-5 flex flex-col ring-2 ring-sky-500/70 relative">
-            <span className="absolute -top-3 left-7 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full clay-tile-cyan">
-              {PRICING.proAvailable ? 'Most popular' : 'Coming soon'}
-            </span>
-            <div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Pro</h3>
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
-                  {PRICING.currency}{yearly ? (PRICING.proYearly / 12).toFixed(PRICING.proYearly % 12 ? 2 : 0) : PRICING.proMonthly}
-                </span>
-                <span className="text-sm text-slate-500">/ month</span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">
-                {yearly ? `Billed ${PRICING.currency}${PRICING.proYearly} yearly.` : 'Billed monthly. Cancel anytime.'}
-              </p>
-            </div>
-            <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-300 flex-1">
-              {PRO_FEATURES.map((f) => (
-                <li key={f} className="flex gap-2.5"><Check size={16} className="text-sky-500 shrink-0 mt-0.5" />{f}</li>
-              ))}
-            </ul>
-            <a
-              href={proCta()}
-              target={PRICING.waitlistUrl ? '_blank' : undefined}
-              rel="noopener noreferrer"
-              className="w-full py-3 rounded-2xl clay-tile-cyan font-bold text-sm text-center flex items-center justify-center gap-2"
-            >
-              {PRICING.proAvailable ? 'Upgrade to Pro' : <><Lock size={15} /> Join the Pro waitlist</>}
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="max-w-3xl mx-auto px-6 py-16 border-t border-slate-200/60 dark:border-slate-800/60 scroll-mt-6">
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white text-center mb-8">Questions</h2>
-        <div className="space-y-3">
-          {FAQ.map((item, i) => (
-            <div key={item.q} className="clay-card overflow-hidden">
+            {onToggleDark && (
               <button
-                onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                className="w-full px-5 py-4 flex items-center justify-between text-left text-sm font-semibold text-slate-900 dark:text-white"
-                aria-expanded={openFaq === i}
+                onClick={onToggleDark}
+                className="hidden sm:flex w-10 h-10 rounded-full items-center justify-center border"
+                style={{ borderColor: 'var(--on-ink-line)', color: 'var(--on-ink)' }}
+                aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={darkMode ? 'Light mode' : 'Dark mode'}
               >
-                {item.q}
-                <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${openFaq === i ? 'rotate-180' : ''}`} />
+                {darkMode ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-              {openFaq === i && <p className="px-5 pb-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{item.a}</p>}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="max-w-4xl mx-auto px-6 pb-16">
-        <div className="clay-card p-8 md:p-10 text-center space-y-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">Your next focused hour starts here.</h2>
-          <p className="text-sm text-slate-500">No account, no download. Open it and press start.</p>
-          <button onClick={onEnterApp} className="px-8 py-3.5 rounded-2xl clay-tile-cyan font-bold text-sm inline-flex items-center gap-2 shadow-xl">
-            Open FocusChecker <ArrowRight size={16} />
-          </button>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="max-w-6xl mx-auto px-6 py-8 border-t border-slate-200/40 dark:border-slate-800/40 space-y-4 text-xs text-slate-500">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>© {new Date().getFullYear()} {SITE.name}</div>
-          <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-            <button onClick={onEnterApp} className="hover:text-sky-500">App</button>
-            <button onClick={onOpenQuickCheck} className="hover:text-sky-500">Readiness check</button>
-            <button onClick={onOpenStressReset} className="hover:text-sky-500">Breathing reset</button>
-            <button onClick={() => onNavigate('/privacy')} className="hover:text-sky-500">Privacy</button>
-            <button onClick={() => onNavigate('/terms')} className="hover:text-sky-500">Terms</button>
-            <a href={`mailto:${SITE.supportEmail}`} className="hover:text-sky-500">Contact</a>
+            )}
+            <button onClick={() => onOpenAuth('login')} className="lp-btn lp-btn-ghost !min-h-10 !px-4 !text-sm">
+              Sign in
+            </button>
+            <button onClick={() => onOpenAuth('register')} className="lp-btn lp-btn-primary !min-h-10 !px-4 !text-sm">
+              <span className="sm:hidden">Sign up</span>
+              <span className="hidden sm:inline">Create account</span>
+            </button>
           </nav>
         </div>
-        <p className="text-[11px] text-slate-400 text-center sm:text-left max-w-3xl">
-          {SITE.name} is a productivity tool, not a medical device. It does not diagnose or treat any condition.
-          Stop any breathing exercise that makes you uncomfortable.
-        </p>
+      </header>
+
+      <main id="main">
+        {/* Hero */}
+        <section
+          style={{
+            background: 'radial-gradient(60rem 36rem at 78% 30%, rgba(76,195,255,.16), transparent 60%), var(--ink)',
+            color: 'var(--on-ink)',
+          }}
+        >
+          <div className={`${shell} pt-12 sm:pt-16 lg:pt-20 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center`}>
+            <div className="lg:col-span-7 space-y-8">
+              <h1 className="lp-display text-[2.9rem] sm:text-7xl lg:text-[5.5rem] leading-[0.96] text-balance">
+                Focus deeper. Reset faster when you're stressed.
+              </h1>
+              <p className="text-lg sm:text-xl leading-relaxed max-w-[34rem]" style={{ color: 'var(--on-ink-muted)' }}>
+                Don't force focus when you're running on empty. Check how ready you are, take a 2-minute breathing reset when you need one, and learn from every session when you work best.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={onEnterApp} className="lp-btn lp-btn-primary !min-h-14 !px-7 !text-lg">
+                  Start focusing — it's free
+                </button>
+                <a {...link('/app/breathe')} className="lp-btn lp-btn-ghost !min-h-14 !px-7 !text-lg">
+                  <Wind size={18} />
+                  Try the 2-min breathing reset
+                </a>
+              </div>
+              <ul className="flex flex-wrap gap-x-6 gap-y-2 text-[15px] font-medium" style={{ color: 'var(--on-ink-muted)' }}>
+                <li className="flex items-center gap-2"><CheckCircle2 size={16} style={{ color: 'var(--mint)' }} />No account needed</li>
+                <li className="flex items-center gap-2"><ShieldCheck size={16} style={{ color: 'var(--mint)' }} />Private by default</li>
+                <li className="flex items-center gap-2"><WifiOff size={16} style={{ color: 'var(--mint)' }} />Works offline</li>
+              </ul>
+            </div>
+
+            <div className="lg:col-span-5">
+              <BreathOrb />
+            </div>
+          </div>
+
+          {/* Example readout: what a session looks like in the app */}
+          <div className={`${shell} mt-14 sm:mt-20`}>
+            <div className="border-t py-6 flex flex-col md:flex-row md:items-center gap-5 md:gap-10" style={{ borderColor: 'var(--on-ink-line)' }}>
+              <p className="text-sm font-semibold md:w-40" style={{ color: 'var(--on-ink-muted)' }}>An example session</p>
+              <dl className="flex-1 grid grid-cols-3 gap-4">
+                {[
+                  ['45:00', 'Deep work block'],
+                  ['94%', 'Readiness score'],
+                  ['48 min', 'Attention span'],
+                ].map(([v, l]) => (
+                  <div key={l}>
+                    <dt className="text-sm" style={{ color: 'var(--on-ink-muted)' }}>{l}</dt>
+                    <dd className="lp-display text-2xl sm:text-4xl mt-1">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <button onClick={onEnterApp} className="lp-btn lp-btn-ghost self-start md:self-auto">
+                Try it yourself <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section id="how" aria-labelledby="how-h" className={`${shell} py-20 sm:py-28 scroll-mt-16`}>
+          <div className="max-w-2xl mb-14">
+            <h2 id="how-h" className={h2}>A simple loop that gets better with use</h2>
+            <p className="mt-4 text-lg leading-relaxed" style={{ color: 'var(--muted)' }}>
+              What you learn at the end of one session shapes how you start the next.
+            </p>
+          </div>
+          <ol className="lp-rail grid grid-cols-1 lg:grid-cols-4 gap-10 lg:gap-8">
+            {STEPS.map((s) => {
+              const Icon = s.icon;
+              return (
+                <li key={s.title} className="relative flex lg:block gap-5">
+                  <span className="relative z-10 w-11 h-11 rounded-full flex items-center justify-center shrink-0" style={{ background: s.color, color: '#05202c' }}>
+                    <Icon size={20} />
+                  </span>
+                  <div className="lg:mt-6">
+                    <h3 className="lp-display text-2xl">{s.title}</h3>
+                    <p className="mt-2 leading-relaxed" style={{ color: 'var(--muted)' }}>{s.text}</p>
+                    <a {...link(s.path)} className="mt-3 inline-flex items-center gap-1.5 font-semibold" style={{ color: 'var(--sky-text)' }}>
+                      Try it <ArrowRight size={15} />
+                    </a>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+
+        {/* What's inside */}
+        <section aria-labelledby="inside-h" className="py-20 sm:py-28" style={{ background: 'var(--surface)', borderBlock: '1px solid var(--line)' }}>
+          <div className={shell}>
+            <div className="max-w-2xl mb-12">
+              <h2 id="inside-h" className={h2}>Built around how attention actually works</h2>
+              <p className="mt-4 text-lg leading-relaxed" style={{ color: 'var(--muted)' }}>
+                No motivational quotes. A few simple tools that help you start, stay focused and recover, plus data that shows what's working.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              {/* Breathing */}
+              <a {...link('/app/breathe')} className={`${cardBase} lg:col-span-7 group`} style={{ background: 'var(--ink)', color: 'var(--on-ink)', borderColor: 'transparent' }}>
+                <span className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: 'var(--mint)', color: '#05271a' }}><Wind size={20} /></span>
+                <div>
+                  <h3 className="lp-display text-3xl">2-minute breathing reset</h3>
+                  <p className="mt-3 leading-relaxed max-w-xl" style={{ color: 'var(--on-ink-muted)' }}>
+                    Guided physiological sighs and box breathing with a visual pacer. Rate your stress before and after to see what helps you.
+                  </p>
+                </div>
+                <div className="grid grid-cols-4 gap-2 mt-auto pt-2" aria-hidden="true">
+                  {[['In', 4], ['Hold', 4], ['Out', 4], ['Hold', 4]].map(([l, n], i) => (
+                    <div key={i}>
+                      <div className="h-2 rounded-full" style={{ background: 'var(--mint)', opacity: i % 2 ? 0.4 : 1 }} />
+                      <div className="mt-2 text-sm" style={{ color: 'var(--on-ink-muted)' }}>{l} {n}s</div>
+                    </div>
+                  ))}
+                </div>
+              </a>
+
+              {/* Dial */}
+              <a {...link('/app')} className={`${cardBase} lg:col-span-5 group`} style={{ background: 'var(--paper)', borderColor: 'var(--line)' }}>
+                <div className="flex items-start justify-between gap-4">
+                  <span className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: 'var(--amber)', color: '#2e1c00' }}><Clock size={20} /></span>
+                  <MiniDial />
+                </div>
+                <div className="mt-auto">
+                  <h3 className="lp-display text-3xl">Tactile focus dial</h3>
+                  <p className="mt-3 leading-relaxed" style={{ color: 'var(--muted)' }}>
+                    Deep work and 25 · 5 sprint blocks from 15 to 90 minutes, breaks that pause your progress, and a floating timer that follows you across tabs.
+                  </p>
+                </div>
+              </a>
+
+              {/* Sounds */}
+              <a {...link('/app/sounds')} className={`${cardBase} lg:col-span-5 group`} style={{ background: 'var(--paper)', borderColor: 'var(--line)' }}>
+                <span className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: 'var(--violet)', color: '#150f40' }}><Headphones size={20} /></span>
+                <Waveform />
+                <div className="mt-auto">
+                  <h3 className="lp-display text-3xl">Focus soundscapes</h3>
+                  <p className="mt-3 leading-relaxed" style={{ color: 'var(--muted)' }}>
+                    40Hz and 10Hz binaural tones, pink noise and rain, generated live in your browser. They work offline and never loop. The binaural tones need headphones.
+                  </p>
+                </div>
+              </a>
+
+              {/* Patterns */}
+              <a {...link('/app/analytics')} className={`${cardBase} lg:col-span-7 group`} style={{ background: 'var(--paper)', borderColor: 'var(--line)' }}>
+                <span className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: 'var(--sky)', color: '#04202f' }}><TrendingUp size={20} /></span>
+                <div>
+                  <DayBars />
+                  <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>Example: attention by hour of the day, best hour highlighted</p>
+                </div>
+                <div className="mt-auto">
+                  <h3 className="lp-display text-3xl">Your attention patterns</h3>
+                  <p className="mt-3 leading-relaxed max-w-xl" style={{ color: 'var(--muted)' }}>
+                    Rate each session in seconds. FocusChecker shows your average attention span, best time of day and a break interval that suits you.
+                  </p>
+                </div>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section id="pricing" aria-labelledby="pricing-h" className={`${shell} py-20 sm:py-28 scroll-mt-16`}>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <h2 id="pricing-h" className={`${h2} max-w-xl`}>Free to use. Upgrade when you want more.</h2>
+            <div className="inline-flex self-start md:self-auto p-1 rounded-full border text-sm font-semibold" style={{ borderColor: 'var(--line)', background: 'var(--surface)' }} role="group" aria-label="Billing period">
+              <button onClick={() => setYearly(false)} aria-pressed={!yearly} className="px-5 py-2.5 rounded-full" style={!yearly ? { background: 'var(--ink)', color: 'var(--on-ink)' } : { color: 'var(--muted)' }}>
+                Monthly
+              </button>
+              <button onClick={() => setYearly(true)} aria-pressed={yearly} className="px-5 py-2.5 rounded-full" style={yearly ? { background: 'var(--ink)', color: 'var(--on-ink)' } : { color: 'var(--muted)' }}>
+                Yearly −{yearlySave}%
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className={cardBase} style={{ background: 'var(--surface)', borderColor: 'var(--line)' }}>
+              <div>
+                <h3 className="lp-display text-2xl">Free</h3>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="lp-display text-6xl">{PRICING.currency}0</span>
+                  <span style={{ color: 'var(--muted)' }}>forever</span>
+                </div>
+                <p className="mt-2" style={{ color: 'var(--muted)' }}>Everything you need to focus every day.</p>
+              </div>
+              <ul className="space-y-3 flex-1">
+                {FREE_FEATURES.map((f) => (
+                  <li key={f} className="flex gap-3"><Check size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--sky-text)' }} />{f}</li>
+                ))}
+              </ul>
+              <button onClick={onEnterApp} className="lp-btn lp-btn-line w-full">Start free</button>
+            </div>
+
+            <div className={`${cardBase} relative`} style={{ background: 'var(--ink)', color: 'var(--on-ink)', borderColor: 'transparent' }}>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h3 className="lp-display text-2xl">Pro</h3>
+                  <span className="text-sm font-semibold px-3 py-1 rounded-full" style={{ background: 'var(--sky)', color: '#04202f' }}>
+                    {PRICING.proAvailable ? 'Most popular' : 'Coming soon'}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="lp-display text-6xl">
+                    {PRICING.currency}{yearly ? (PRICING.proYearly / 12).toFixed(PRICING.proYearly % 12 ? 2 : 0) : PRICING.proMonthly}
+                  </span>
+                  <span style={{ color: 'var(--on-ink-muted)' }}>/ month</span>
+                </div>
+                <p className="mt-2" style={{ color: 'var(--on-ink-muted)' }}>
+                  {yearly ? `Billed ${PRICING.currency}${PRICING.proYearly} yearly.` : 'Billed monthly. Cancel anytime.'}
+                </p>
+              </div>
+              <ul className="space-y-3 flex-1">
+                {PRO_FEATURES.map((f) => (
+                  <li key={f} className="flex gap-3"><Check size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--mint)' }} />{f}</li>
+                ))}
+              </ul>
+              <div className="space-y-3">
+                <a href={proCta()} target={PRICING.waitlistUrl ? '_blank' : undefined} rel="noopener noreferrer" className="lp-btn lp-btn-primary w-full">
+                  {PRICING.proAvailable ? 'Upgrade to Pro' : <><Lock size={15} /> Join the Pro waitlist</>}
+                </a>
+                {!PRICING.proAvailable && (
+                  <p className="text-sm text-center" style={{ color: 'var(--on-ink-muted)' }}>Pro isn't live yet. The waitlist is free, with no payment details.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" aria-labelledby="faq-h" className="scroll-mt-16" style={{ borderTop: '1px solid var(--line)' }}>
+          <div className={`${shell} py-20 sm:py-28 grid grid-cols-1 lg:grid-cols-12 gap-10`}>
+            <div className="lg:col-span-4">
+              <h2 id="faq-h" className={`${h2} lg:sticky lg:top-28`}>Questions</h2>
+            </div>
+            <div className="lg:col-span-8 border-t" style={{ borderColor: 'var(--line)' }}>
+              {FAQ.map((item, i) => {
+                const open = openFaq === i;
+                return (
+                  <div key={item.q} className="border-b" style={{ borderColor: 'var(--line)' }}>
+                    <h3>
+                      <button
+                        onClick={() => setOpenFaq(open ? null : i)}
+                        className="w-full py-6 flex items-center justify-between gap-4 text-left lp-display text-xl sm:text-2xl"
+                        style={{ fontWeight: 600 }}
+                        aria-expanded={open}
+                        aria-controls={`faq-panel-${i}`}
+                        id={`faq-btn-${i}`}
+                      >
+                        {item.q}
+                        <Plus size={22} className="shrink-0 transition-transform" style={{ transform: open ? 'rotate(45deg)' : 'none', color: 'var(--sky-text)' }} />
+                      </button>
+                    </h3>
+                    {open && (
+                      <p id={`faq-panel-${i}`} role="region" aria-labelledby={`faq-btn-${i}`} className="pb-7 text-lg leading-relaxed max-w-2xl" style={{ color: 'var(--muted)' }}>
+                        {item.a}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="relative overflow-hidden" style={{ background: 'var(--ink)', color: 'var(--on-ink)' }}>
+          <div className="lp-ring-deco absolute -right-24 sm:right-0 top-1/2 -translate-y-1/2 w-[26rem] sm:w-[34rem] aspect-square opacity-70" aria-hidden="true" />
+          <div className={`${shell} relative py-24 sm:py-32`}>
+            <h2 className="lp-display text-5xl sm:text-7xl leading-[0.98] max-w-2xl text-balance">Your next focused hour starts here.</h2>
+            <p className="mt-5 text-xl" style={{ color: 'var(--on-ink-muted)' }}>No account needed. Open it and press start.</p>
+            <div className="mt-9 flex flex-col sm:flex-row gap-3 sm:items-center">
+              <button onClick={onEnterApp} className="lp-btn lp-btn-primary !min-h-14 !px-8 !text-lg">
+                Open FocusChecker <ArrowRight size={18} />
+              </button>
+              <InstallAppButton variant="pill" className="lp-btn lp-btn-ghost !min-h-14 !px-7 !text-base" />
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer style={{ background: 'var(--ink)', color: 'var(--on-ink)', borderTop: '1px solid var(--on-ink-line)' }}>
+        <div className={`${shell} py-14 grid grid-cols-2 md:grid-cols-4 gap-10 text-[15px]`}>
+          <div className="col-span-2 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'var(--sky)' }}><Zap size={18} style={{ color: '#04202f' }} /></span>
+              <span className="lp-display text-xl">FocusChecker</span>
+            </div>
+            <p className="max-w-xs leading-relaxed" style={{ color: 'var(--on-ink-muted)' }}>
+              Focus timer, 2-minute breathing resets and attention insights. Private, free and works offline.
+            </p>
+          </div>
+          <nav aria-label="Product">
+            <h2 className="font-bold mb-4">Product</h2>
+            <ul className="space-y-2.5" style={{ color: 'var(--on-ink-muted)' }}>
+              <li><a {...link('/app')} className="hover:text-white">Focus timer</a></li>
+              <li><a {...link('/app/readiness')} className="hover:text-white">Readiness check</a></li>
+              <li><a {...link('/app/breathe')} className="hover:text-white">Breathing reset</a></li>
+              <li><a {...link('/app/sounds')} className="hover:text-white">Focus sounds</a></li>
+              <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
+            </ul>
+          </nav>
+          <nav aria-label="Company">
+            <h2 className="font-bold mb-4">Company</h2>
+            <ul className="space-y-2.5" style={{ color: 'var(--on-ink-muted)' }}>
+              <li><a {...link('/privacy')} className="hover:text-white">Privacy</a></li>
+              <li><a {...link('/terms')} className="hover:text-white">Terms</a></li>
+              <li><a href={`mailto:${SITE.supportEmail}`} className="hover:text-white">Contact</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div className="border-t" style={{ borderColor: 'var(--on-ink-line)' }}>
+          <div className={`${shell} py-6 flex flex-col md:flex-row md:items-start justify-between gap-4 text-sm`} style={{ color: 'var(--on-ink-muted)' }}>
+            <div className="flex items-center gap-5">
+              <p>© {new Date().getFullYear()} {SITE.name}</p>
+              {onToggleDark && (
+                <button onClick={onToggleDark} className="inline-flex items-center gap-1.5 font-semibold hover:text-white">
+                  {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+                  {darkMode ? 'Light mode' : 'Dark mode'}
+                </button>
+              )}
+            </div>
+            <p className="md:max-w-xl md:text-right leading-relaxed">
+              {SITE.name} is a productivity tool, not a medical device. It does not diagnose or treat any condition. Stop any breathing exercise that makes you uncomfortable.
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );

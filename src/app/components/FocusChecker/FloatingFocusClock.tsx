@@ -40,7 +40,7 @@ function defaultPosition(minimized: boolean) {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const mobile = w < MOBILE_BREAKPOINT;
-  const width = minimized ? 220 : 320;
+  const width = minimized ? 150 : 320;
   const height = minimized ? 56 : 230;
   return {
     x: Math.max(12, w - width - 12),
@@ -73,7 +73,8 @@ export function FloatingFocusClock({
 
   // Always on screen (as in the original design) unless the user closes it.
   void isDialTabActive;
-  const isVisible = enabled && !dismissed;
+  // Hidden on marketing/legal pages, except while a block is actually running so it never disappears mid-session.
+  const isVisible = (enabled || timer.hasStarted) && !dismissed;
 
   // Keep a mutable ref of live timer state for Canvas PiP fallback
   const timerStateRef = useRef<PipLiveState>({
@@ -101,7 +102,7 @@ export function FloatingFocusClock({
     const handleResize = () => {
       const mobile = window.innerWidth < MOBILE_BREAKPOINT;
       setPosition((prev) => ({
-        x: Math.max(8, Math.min(window.innerWidth - (isMinimized ? 220 : 320), prev.x)),
+        x: Math.max(8, Math.min(window.innerWidth - (isMinimized ? 150 : 320), prev.x)),
         y: Math.max(8, Math.min(window.innerHeight - (isMinimized ? 56 : 230) - (mobile ? DOCK_CLEARANCE : 8), prev.y)),
       }));
     };
@@ -126,7 +127,7 @@ export function FloatingFocusClock({
     const onPointerMove = (moveEv: PointerEvent) => {
       const dx = moveEv.clientX - startX;
       const dy = moveEv.clientY - startY;
-      const widgetWidth = isMinimized ? 220 : 310;
+      const widgetWidth = isMinimized ? 150 : 310;
       const widgetHeight = isMinimized ? 55 : 220;
 
       const newX = Math.max(8, Math.min(window.innerWidth - widgetWidth - 8, initX + dx));
@@ -273,7 +274,7 @@ export function FloatingFocusClock({
               onPointerDown={handlePointerDown}
               className="clay-card py-2 px-3.5 flex items-center gap-2.5 shadow-2xl border border-white/90 dark:border-slate-700 cursor-grab active:cursor-grabbing backdrop-blur-xl"
             >
-              <GripHorizontal size={13} className="text-slate-400" />
+              <GripHorizontal size={13} className="text-slate-500 dark:text-slate-400" />
               <div className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-ping" />
               <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-100">
                 PiP: {timer.formattedTime}
@@ -283,7 +284,7 @@ export function FloatingFocusClock({
                   pipWindow.close();
                   setPipWindow(null);
                 }}
-                className="px-2 py-0.5 rounded-lg text-[10px] font-bold clay-tile-cyan text-white shadow-sm flex items-center gap-1 cursor-pointer"
+                className="px-2 py-0.5 rounded-lg text-[11px] font-bold clay-tile-cyan text-white shadow-sm flex items-center gap-1 cursor-pointer"
                 title="Dock back to main browser window"
               >
                 <span>Dock</span>
@@ -299,9 +300,9 @@ export function FloatingFocusClock({
                   initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.85, opacity: 0 }}
-                  className="clay-card py-2 px-3.5 flex items-center gap-2.5 cursor-grab active:cursor-grabbing shadow-2xl touch-none border border-white/80 dark:border-slate-700"
+                  className="clay-card !bg-white dark:!bg-slate-900 py-2.5 px-3.5 flex items-center gap-2.5 cursor-grab active:cursor-grabbing shadow-2xl touch-none border border-white/80 dark:border-slate-700"
                 >
-                  <GripHorizontal size={13} className="text-slate-400" />
+                  <GripHorizontal size={13} className="text-slate-500 dark:text-slate-400" />
                   <div className={`w-2.5 h-2.5 rounded-full ${timer.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
                   <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-100">
                     {timer.formattedTime}
@@ -325,7 +326,7 @@ export function FloatingFocusClock({
                       e.stopPropagation();
                       setIsMinimized(false);
                     }}
-                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                    className="p-1 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                     title="Expand floating clock"
                   >
                     <Maximize2 size={12} />
@@ -424,7 +425,7 @@ function ClockCardContent({
       <div className="flex items-center justify-between text-xs py-0.5">
         <div className="flex items-center gap-1.5">
           {!isInsideNativeWindow && (
-            <GripHorizontal size={14} className="text-slate-400 opacity-80" />
+            <GripHorizontal size={14} className="text-slate-500 dark:text-slate-400 opacity-80" />
           )}
           <span className={`w-2.5 h-2.5 rounded-full ${timer.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
           <span className="font-bold text-slate-800 dark:text-slate-100 text-xs tracking-tight">
@@ -438,7 +439,7 @@ function ClockCardContent({
 
         {/* Window Action Controls */}
         <div
-          className="flex items-center gap-0.5 text-slate-400"
+          className="flex items-center gap-0.5 text-slate-500 dark:text-slate-400"
           onPointerDown={(e) => e.stopPropagation()}
         >
           <button
@@ -523,7 +524,7 @@ function ClockCardContent({
             ) : (
               <Fingerprint
                 size={20}
-                className={timer.isActive ? 'text-sky-500' : 'text-slate-400'}
+                className={timer.isActive ? 'text-sky-500' : 'text-slate-500 dark:text-slate-400'}
               />
             )}
           </div>
@@ -533,7 +534,7 @@ function ClockCardContent({
           <div className="text-3xl font-extrabold font-mono text-slate-900 dark:text-white leading-none tracking-tight">
             {timer.formattedTime}
           </div>
-          <div className="text-[11px] font-semibold text-slate-400 mt-1.5 flex items-center gap-1.5 truncate">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-1.5 truncate">
             <span className={timer.isActive ? 'text-emerald-500 font-bold' : 'text-amber-500'}>
               {timer.isActive ? (timer.isBreak ? 'On break' : 'In session') : 'Paused'}
             </span>
@@ -551,7 +552,7 @@ function ClockCardContent({
         <div className="flex items-center gap-1.5 min-w-0">
           <Volume2
             size={14}
-            className={hasAudioPlaying ? 'text-sky-500 animate-pulse' : 'text-slate-400'}
+            className={hasAudioPlaying ? 'text-sky-500 animate-pulse' : 'text-slate-500 dark:text-slate-400'}
           />
           <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">
             {hasAudioPlaying ? `Sound: ${activeSoundscape}` : 'Sound: Off'}
@@ -561,7 +562,7 @@ function ClockCardContent({
         {hasAudioPlaying ? (
           <button
             onClick={onStopSoundscape}
-            className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500 hover:bg-red-600 text-white flex items-center gap-1 transition-all shadow-sm cursor-pointer"
             title="Immediately stop and silence audio"
           >
             <Square size={9} fill="currentColor" />
@@ -571,7 +572,7 @@ function ClockCardContent({
           onToggleSoundscape && (
             <button
               onClick={() => onToggleSoundscape('gamma')}
-              className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 hover:bg-sky-200 cursor-pointer"
+              className="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 hover:bg-sky-200 cursor-pointer"
               title="Play 40Hz focus tone"
             >
               40Hz On

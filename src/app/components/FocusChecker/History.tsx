@@ -20,6 +20,10 @@ import { toast } from 'sonner';
 interface HistoryProps {
   history: HistoryItem[];
   onClearHistory: () => void;
+  /** Empty-state shortcuts, so the page is never a dead end. */
+  onStartFocus?: () => void;
+  onCheckIn?: () => void;
+  onBreathe?: () => void;
 }
 
 function isFocusSession(item: HistoryItem): item is FocusSession {
@@ -34,7 +38,7 @@ function isStressReset(item: HistoryItem): item is StressResetSession {
   return item.type === 'StressReset';
 }
 
-export function History({ history, onClearHistory }: HistoryProps) {
+export function History({ history, onClearHistory, onStartFocus, onCheckIn, onBreathe }: HistoryProps) {
   const [filter, setFilter] = useState<'all' | 'sessions' | 'checks' | 'resets'>('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -82,20 +86,21 @@ export function History({ history, onClearHistory }: HistoryProps) {
       {/* Top Filter and Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
         {/* Filter Pills */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl max-w-full overflow-x-auto">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl max-w-full overflow-x-auto" role="group" aria-label="Filter journal">
           {[
-            { id: 'all' as const, label: 'All Activity' },
-            { id: 'sessions' as const, label: 'Focus Sessions' },
-            { id: 'checks' as const, label: 'Readiness' },
-            { id: 'resets' as const, label: 'Stress Resets' },
+            { id: 'all' as const, label: 'All' },
+            { id: 'sessions' as const, label: 'Focus' },
+            { id: 'checks' as const, label: 'Check-ins' },
+            { id: 'resets' as const, label: 'Breathing' },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              aria-pressed={filter === tab.id}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 filter === tab.id
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               {tab.label}
@@ -155,15 +160,24 @@ export function History({ history, onClearHistory }: HistoryProps) {
       <div className="clay-card p-3.5 sm:p-4.5 space-y-2">
         {filtered.length === 0 ? (
           <div className="py-8 text-center space-y-2">
-            <div className="w-12 h-12 rounded-full clay-card-subtle flex items-center justify-center mx-auto text-slate-400">
+            <div className="w-12 h-12 rounded-full clay-card-subtle flex items-center justify-center mx-auto text-slate-500 dark:text-slate-400">
               <Brain size={22} />
             </div>
-            <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
-              Nothing logged yet
-            </h4>
-            <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-              Finish a focus block, take a readiness check or do a 2-minute breathing reset and it will show up here.
+            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
+              {history.length === 0 ? 'Nothing logged yet' : 'Nothing in this filter yet'}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              {history.length === 0
+                ? 'Finish a focus block, take a readiness check or do a 2-minute breathing reset and it will show up here. It stays on this device unless you sign in.'
+                : 'Choose “All” to see everything you have logged.'}
             </p>
+            {history.length === 0 && (onStartFocus || onCheckIn || onBreathe) && (
+              <div className="flex flex-wrap justify-center gap-2 pt-2">
+                {onStartFocus && <button onClick={onStartFocus} className="px-4 py-2 rounded-xl clay-tile-cyan text-xs font-bold">Start a focus block</button>}
+                {onCheckIn && <button onClick={onCheckIn} className="px-4 py-2 rounded-xl clay-button text-xs font-semibold text-slate-700 dark:text-slate-200">Readiness check</button>}
+                {onBreathe && <button onClick={onBreathe} className="px-4 py-2 rounded-xl clay-button text-xs font-semibold text-slate-700 dark:text-slate-200">Breathing reset</button>}
+              </div>
+            )}
           </div>
         ) : (
           filtered.map((item) => {
@@ -202,7 +216,7 @@ export function History({ history, onClearHistory }: HistoryProps) {
                       <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight">
                         {item.note || item.type}
                       </h4>
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         <span className="flex items-center gap-1">
                           <Calendar size={11} />
                           {format(new Date(item.date), 'MMM d, h:mm a')}
@@ -228,7 +242,7 @@ export function History({ history, onClearHistory }: HistoryProps) {
                     </span>
                     <ChevronDown
                       size={15}
-                      className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      className={`text-slate-500 dark:text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                     />
                   </div>
                 </div>
@@ -239,19 +253,19 @@ export function History({ history, onClearHistory }: HistoryProps) {
                     {isFocusSession(item) && (
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <div className="clay-card p-2.5">
-                          <span className="text-[10px] text-slate-400">Duration</span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">Duration</span>
                           <div className="font-bold">{item.durationMinutes}m</div>
                         </div>
                         <div className="clay-card p-2.5">
-                          <span className="text-[10px] text-slate-400">Quality</span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">Quality</span>
                           <div className="font-bold">{item.focusQuality}/10</div>
                         </div>
                         <div className="clay-card p-2.5">
-                          <span className="text-[10px] text-slate-400">Clarity</span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">Clarity</span>
                           <div className="font-bold">{item.contentClarity}/10</div>
                         </div>
                         <div className="clay-card p-2.5">
-                          <span className="text-[10px] text-slate-400">Frustration</span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">Frustration</span>
                           <div className="font-bold">{item.frustrationLevel}/10</div>
                         </div>
                       </div>

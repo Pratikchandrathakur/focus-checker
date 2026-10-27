@@ -106,7 +106,7 @@ export function LegalPage({ kind, onBack }: { kind: 'privacy' | 'terms'; onBack:
   return (
     <div className="min-h-screen clay-canvas">
       <div className="max-w-2xl mx-auto px-5 py-10 md:py-16">
-        <button onClick={onBack} className="mb-6 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-sky-600">
+        <button onClick={onBack} className="mb-6 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-sky-600">
           <ArrowLeft size={14} /> Back to {SITE.name}
         </button>
         <article className="clay-card p-6 md:p-10 space-y-6">
@@ -114,7 +114,7 @@ export function LegalPage({ kind, onBack }: { kind: 'privacy' | 'terms'; onBack:
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">
               {kind === 'privacy' ? 'Privacy Policy' : 'Terms of Use'}
             </h1>
-            <p className="text-xs text-slate-400">Last updated {SITE.legalLastUpdated}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Last updated {SITE.legalLastUpdated}</p>
           </header>
           {kind === 'privacy' ? <Privacy /> : <Terms />}
         </article>

@@ -164,7 +164,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
       >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl clay-button text-slate-400 hover:text-slate-700 dark:hover:text-white"
+          className="absolute top-5 right-5 p-2 rounded-xl clay-button text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white"
           aria-label="Close"
         >
           <X size={16} />
@@ -175,7 +175,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
             <ShieldCheck size={24} className="text-white" />
           </div>
           <h3 id="auth-title" className="text-xl font-bold text-slate-900 dark:text-white">{titles[mode][0]}</h3>
-          <p className="text-xs text-slate-500">{titles[mode][1]}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400">{titles[mode][1]}</p>
         </div>
 
         {sentTo ? (
@@ -201,7 +201,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
                     className={`py-2 rounded-xl text-xs font-semibold transition-all ${
                       mode === m
                         ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
                     {m === 'login' ? 'Sign In' : 'Register'}
@@ -221,7 +221,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
                 <div>
                   <label htmlFor="auth-name" className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">Full Name</label>
                   <div className="relative">
-                    <User size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <User size={16} className="absolute left-3.5 top-3 text-slate-500 dark:text-slate-400" />
                     <input id="auth-name" type="text" autoComplete="name" placeholder="e.g. Alex Morgan" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className={inputCls} />
                   </div>
                 </div>
@@ -231,7 +231,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
                 <div>
                   <label htmlFor="auth-email" className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">Email Address</label>
                   <div className="relative">
-                    <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <Mail size={16} className="absolute left-3.5 top-3 text-slate-500 dark:text-slate-400" />
                     <input id="auth-email" type="email" autoComplete="email" placeholder="name@domain.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
                   </div>
                 </div>
@@ -250,7 +250,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
                     )}
                   </div>
                   <div className="relative">
-                    <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <Lock size={16} className="absolute left-3.5 top-3 text-slate-500 dark:text-slate-400" />
                     <input
                       id="auth-password"
                       type="password"
@@ -291,7 +291,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
               <>
                 <div className="relative my-4 flex items-center justify-center">
                   <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-                  <span className="bg-white dark:bg-slate-900 px-3 text-[10px] text-slate-400 uppercase font-semibold absolute">Or Demo Instantly</span>
+                  <span className="bg-white dark:bg-slate-900 px-3 text-[11px] text-slate-500 dark:text-slate-400 uppercase font-semibold absolute">Or Demo Instantly</span>
                 </div>
                 <button
                   type="button"
@@ -301,7 +301,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
                   <Sparkles size={16} className="text-amber-500" />
                   Continue with Guest Access
                 </button>
-                <p className="text-[10px] text-center text-slate-400">Guest data stays in this browser only.</p>
+                <p className="text-[11px] text-center text-slate-500 dark:text-slate-400">Guest data stays in this browser only.</p>
               </>
             )}
           </>

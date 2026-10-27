@@ -31,13 +31,14 @@ import { LandingPage } from './components/LandingPage/LandingPage';
 import { TactileFocusDial } from './components/FocusChecker/TactileFocusDial';
 import { EnvironmentHub } from './components/FocusChecker/EnvironmentHub';
 import { FloatingFocusClock } from './components/FocusChecker/FloatingFocusClock';
-import { QuickCheck } from './components/FocusChecker/QuickCheck';
+import { QuickCheck, type BlockSuggestion } from './components/FocusChecker/QuickCheck';
 import { StressReset } from './components/FocusChecker/StressReset';
 import { Soundscapes } from './components/FocusChecker/Soundscapes';
 import { SessionReviewModal } from './components/FocusChecker/SessionReviewModal';
 import { LegalPage } from './components/LandingPage/LegalPage';
 import { History } from './components/FocusChecker/History';
 import { AuthModal, type AuthMode } from './components/Auth/AuthModal';
+import { InstallAppButton } from './components/InstallAppButton';
 import { supabase, cloudEnabled, profileFromUser, fetchHistory, upsertHistory, deleteAllHistory, mergeHistory } from './services/supabase';
 
 import { 
@@ -155,6 +156,7 @@ function AppContent({
   history: HistoryItem[];
   setHistory: React.Dispatch<React.SetStateAction<HistoryItem[]>>;
 }) {
+  const timer = useFocusTimer();
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname));
   const activeTab: AppTab | null = route.page === 'app' ? route.tab : null;
   const [darkMode, setDarkMode] = useState<boolean>(loadDarkMode);
@@ -294,9 +296,18 @@ function AppContent({
     toast.info('Logged out successfully');
   };
 
-  const handleQuickCheckComplete = (check: ReadinessCheck) => {
+  // Readiness → timer: the saved check sets up the suggested block (unless a block is already under way),
+  // then returns the user to the dial — or to the breathing reset if they chose that.
+  const handleQuickCheckComplete = (check: ReadinessCheck, suggestion: BlockSuggestion, goBreathe: boolean) => {
     setHistory((prev) => [check, ...prev]);
-    setActiveTab(check.score >= 70 ? 'dial' : 'stress');
+    if (!timer.hasStarted && !timer.isActive) {
+      timer.setMode(suggestion.mode);
+      if (suggestion.mode === 'deep') timer.setDuration(suggestion.minutes);
+      toast.success(`Check-in saved. Next block set to ${suggestion.label}.`);
+    } else {
+      toast.success('Check-in saved.');
+    }
+    setActiveTab(goBreathe ? 'stress' : 'dial');
   };
 
   const handleStressResetComplete = (resetSession: StressResetSession) => {
@@ -343,10 +354,10 @@ function AppContent({
 
   // Navigation Items
   const navItems = [
-    { id: 'dial' as const, label: 'Focus Dial', icon: Fingerprint },
-    { id: 'stress' as const, label: 'De-Stress', icon: Wind },
-    { id: 'check' as const, label: 'Readiness', icon: Target },
-    { id: 'sound' as const, label: 'Soundscapes', icon: Headphones },
+    { id: 'dial' as const, label: 'Focus', icon: Fingerprint },
+    { id: 'stress' as const, label: 'Breathe', icon: Wind },
+    { id: 'check' as const, label: 'Check-in', icon: Target },
+    { id: 'sound' as const, label: 'Sounds', icon: Headphones },
     { id: 'dashboard' as const, label: 'Analytics', icon: LayoutDashboard },
     { id: 'history' as const, label: 'Journal', icon: HistoryIcon },
   ];
@@ -379,7 +390,7 @@ function AppContent({
         onStopSoundscape={handleStopSoundscape}
         onToggleSoundscape={handleToggleSoundscape}
         isDialTabActive={activeTab === 'dial'}
-        enabled
+        enabled={route.page === 'app'}
       />
 
       {route.page === 'privacy' || route.page === 'terms' ? (
@@ -391,9 +402,11 @@ function AppContent({
           onOpenStressReset={() => setActiveTab('stress')}
           onNavigate={navigatePath}
           onOpenAuth={openAuth}
+          darkMode={darkMode}
+          onToggleDark={toggleDarkMode}
         />
       ) : (
-        <div className="flex flex-col min-h-screen pb-24 lg:pb-3">
+        <div className="flex flex-col min-h-screen pb-44 lg:pb-3">
           {/* Top Header */}
           <header className="sticky top-0 z-40 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-slate-800/60 px-4 md:px-8 py-1.5 sm:py-2 transition-all">
             <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -412,7 +425,7 @@ function AppContent({
                   <h1 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
                     Focus<span className="text-sky-500">Checker</span>
                   </h1>
-                  <span className="text-[10px] font-semibold text-slate-400">
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                     Focus · Breathe · Learn
                   </span>
                 </div>
@@ -432,7 +445,7 @@ function AppContent({
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
                         isActive
                           ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
                       <Icon size={14} />
@@ -452,7 +465,7 @@ function AppContent({
                     <span className="text-[11px] hidden sm:inline">{SOUND_NAMES[activeSoundscape] ?? activeSoundscape}</span>
                     <button
                       onClick={handleStopSoundscape}
-                      className="px-1.5 py-0.5 rounded-md bg-white/20 hover:bg-white/40 text-white text-[10px] font-bold flex items-center gap-1 transition-colors"
+                      className="px-1.5 py-0.5 rounded-md bg-white/20 hover:bg-white/40 text-white text-[11px] font-bold flex items-center gap-1 transition-colors"
                       title="Stop Audio immediately"
                     >
                       <span>Stop</span>
@@ -460,10 +473,13 @@ function AppContent({
                   </div>
                 )}
 
+                {/* Install as app (only shown when the browser allows it) */}
+                <InstallAppButton />
+
                 {/* Dark/Light mode toggle */}
                 <button
                   onClick={toggleDarkMode}
-                  className="w-9 h-9 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300"
+                  className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300"
                   title="Toggle light / dark mode"
                   aria-label="Toggle light / dark mode"
                 >
@@ -483,8 +499,8 @@ function AppContent({
                     )}
                     <div className="hidden sm:flex flex-col text-right">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">{user.name}</span>
-                      <span className="text-[10px] text-amber-500 font-semibold flex items-center gap-1 justify-end">
-                        <Flame size={12} className={streakDays > 0 ? 'text-amber-500 fill-amber-500' : 'text-slate-400'} />
+                      <span className="text-[11px] text-amber-500 font-semibold flex items-center gap-1 justify-end">
+                        <Flame size={12} className={streakDays > 0 ? 'text-amber-500 fill-amber-500' : 'text-slate-500 dark:text-slate-400'} />
                         <span>{streakDays}d Streak</span>
                       </span>
                     </div>
@@ -495,7 +511,7 @@ function AppContent({
                     )}
                     <button
                       onClick={handleSignOut}
-                      className="w-9 h-9 rounded-xl clay-button flex items-center justify-center text-slate-500 hover:text-red-500"
+                      className="w-9 h-9 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-red-500"
                       title="Log Out"
                       aria-label="Log out"
                     >
@@ -536,7 +552,7 @@ function AppContent({
                           className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                             mobileDialView === 'dial'
                               ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                              : 'text-slate-500'
+                              : 'text-slate-600 dark:text-slate-400'
                           }`}
                         >
                           Focus Dial
@@ -546,7 +562,7 @@ function AppContent({
                           className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                             mobileDialView === 'atmosphere'
                               ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                              : 'text-slate-500'
+                              : 'text-slate-600 dark:text-slate-400'
                           }`}
                         >
                           Today
@@ -623,7 +639,7 @@ function AppContent({
                 )}
 
                 {activeTab === 'dashboard' && (
-                  <Suspense fallback={<div className="clay-card p-10 text-center text-xs text-slate-400">Loading analytics…</div>}>
+                  <Suspense fallback={<div className="clay-card p-10 text-center text-xs text-slate-500 dark:text-slate-400">Loading analytics…</div>}>
                     <Dashboard
                       history={history}
                       onOpenQuickCheck={() => setActiveTab('check')}
@@ -637,6 +653,9 @@ function AppContent({
                   <History
                     history={history}
                     onClearHistory={handleClearHistory}
+                    onStartFocus={() => setActiveTab('dial')}
+                    onCheckIn={() => setActiveTab('check')}
+                    onBreathe={() => setActiveTab('stress')}
                   />
                 )}
               </motion.div>
@@ -645,7 +664,7 @@ function AppContent({
 
           {/* Mobile Bottom Floating Clay Dock */}
           <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
-            <nav className="clay-card p-1.5 flex items-center justify-between shadow-2xl backdrop-blur-2xl" aria-label="Main">
+            <nav className="clay-card p-1.5 grid grid-cols-6 gap-0.5 shadow-2xl backdrop-blur-2xl" aria-label="Main">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -655,14 +674,14 @@ function AppContent({
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`flex-1 min-w-0 flex flex-col items-center gap-1 py-2 px-1 rounded-2xl transition-all ${
+                    className={`min-w-0 min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 rounded-2xl transition-colors ${
                       isActive
                         ? 'clay-tile-cyan'
-                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
                     <Icon size={18} />
-                    <span className="text-[10px] font-semibold truncate max-w-full">{item.label}</span>
+                    <span className="text-[11px] leading-none font-semibold whitespace-nowrap">{item.label}</span>
                   </button>
                 );
               })}

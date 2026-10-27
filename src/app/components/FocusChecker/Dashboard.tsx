@@ -42,7 +42,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
           <Activity size={22} className="text-white" />
         </div>
         <h3 className="text-xl font-bold text-slate-900 dark:text-white">Your analytics start with one session</h3>
-        <p className="text-sm text-slate-500 max-w-md mx-auto">
+        <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
           Complete and rate a focus block, take a readiness check or do a breathing reset. Charts appear right away;
           personal patterns like your best time of day unlock after {MIN_SESSIONS_FOR_PATTERNS} rated sessions.
         </p>
@@ -70,7 +70,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
         {/* Stat 1: Average Focus */}
         <div className="clay-card p-3 sm:p-3.5 space-y-1 rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Avg. score</span>
+            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Avg. score</span>
             <div className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
               <Zap size={14} />
             </div>
@@ -78,7 +78,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
           <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white font-mono leading-none">
             {avgScore === null ? '—' : `${avgScore}%`}
           </div>
-          <span className="inline-block text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+          <span className="inline-block text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
             {scoreLabel}
           </span>
         </div>
@@ -86,7 +86,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
         {/* Stat 2: Total Hours */}
         <div className="clay-card p-3 sm:p-3.5 space-y-1 rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Deep Work</span>
+            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Deep Work</span>
             <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
               <Clock size={14} />
             </div>
@@ -94,7 +94,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
           <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white font-mono leading-none">
             {totalHours}h
           </div>
-          <span className="inline-block text-[10px] font-semibold text-sky-600 dark:text-sky-400">
+          <span className="inline-block text-[11px] font-semibold text-sky-600 dark:text-sky-400">
             {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'} logged
           </span>
         </div>
@@ -102,7 +102,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
         {/* Stat 3: Stress Resets */}
         <div className="clay-card p-3 sm:p-3.5 space-y-1 rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Resets</span>
+            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Resets</span>
             <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
               <Wind size={14} />
             </div>
@@ -110,7 +110,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
           <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white font-mono leading-none">
             {stressResets.length}
           </div>
-          <span className="inline-block text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+          <span className="inline-block text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
             Breathing resets
           </span>
         </div>
@@ -118,7 +118,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
         {/* Stat 4: Optimal Span */}
         <div className="clay-card p-3 sm:p-3.5 space-y-1 rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Attention span</span>
+            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Attention span</span>
             <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
               <Brain size={14} />
             </div>
@@ -126,7 +126,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
           <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white font-mono leading-none">
             {info.avgAttentionSpan === null ? '—' : `${info.avgAttentionSpan}m`}
           </div>
-          <span className="inline-block text-[10px] font-semibold text-purple-600 dark:text-purple-400">
+          <span className="inline-block text-[11px] font-semibold text-purple-600 dark:text-purple-400">
             {info.avgAttentionSpan === null ? 'Log a focus session' : 'Before focus fades'}
           </span>
         </div>
@@ -139,9 +139,9 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
             <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
               Last 7 days
             </h3>
-            <p className="text-[10px] text-slate-500">Average score of everything you logged each day</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">Average score of everything you logged each day</p>
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-semibold">
+          <div className="flex items-center gap-2 text-[11px] font-semibold">
             <span className="flex items-center gap-1.5 text-sky-500">
               <span className="w-2 h-2 rounded-full bg-sky-500" /> Focus Score
             </span>
@@ -150,7 +150,7 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
 
         <div className="h-[180px] sm:h-[200px] w-full relative">
           {!hasChartData && (
-            <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400 z-10">
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 z-10">
               Nothing logged in the last 7 days
             </div>
           )}
@@ -193,12 +193,12 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
       {/* Personal patterns */}
       <div className="clay-card-subtle p-3 sm:p-3.5 space-y-2 rounded-2xl">
         <div className="flex flex-wrap items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             <Sparkles size={14} className="text-amber-500" />
             <span>Your patterns</span>
           </div>
           {!info.enough && (
-            <span className="text-[10px] text-slate-500">
+            <span className="text-[11px] text-slate-600 dark:text-slate-400">
               {MIN_SESSIONS_FOR_PATTERNS - sessions.length} more rated {MIN_SESSIONS_FOR_PATTERNS - sessions.length === 1 ? 'session' : 'sessions'} to unlock
             </span>
           )}
@@ -206,25 +206,25 @@ export function Dashboard({ history, onOpenQuickCheck, onOpenStressReset, onOpen
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
           <div className="clay-card p-2.5 space-y-0.5 rounded-xl">
-            <span className="text-[10px] text-slate-400 font-semibold">Best time of day</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Best time of day</span>
             <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{info.bestTimeOfDay ?? 'Not enough data yet'}</div>
-            <p className="text-[9px] text-slate-500">Highest scoring 2-hour window</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">Highest scoring 2-hour window</p>
           </div>
 
           <div className="clay-card p-2.5 space-y-0.5 rounded-xl">
-            <span className="text-[10px] text-slate-400 font-semibold">Suggested break interval</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Suggested break interval</span>
             <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
               {info.suggestedBreakInterval ? `Every ${info.suggestedBreakInterval} minutes` : 'Not enough data yet'}
             </div>
-            <p className="text-[9px] text-slate-500">When attention typically fades</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">When attention typically fades</p>
           </div>
 
           <div className="clay-card p-2.5 space-y-0.5 rounded-xl">
-            <span className="text-[10px] text-slate-400 font-semibold">Stress change after resets</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Stress change after resets</span>
             <div className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">
               {info.stressReductionPct === null ? 'Not enough data yet' : `${info.stressReductionPct > 0 ? '−' : '+'}${Math.abs(info.stressReductionPct)}% self-rated`}
             </div>
-            <p className="text-[9px] text-slate-500">Average before/after breathing shift</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">Average before/after breathing shift</p>
           </div>
         </div>
       </div>

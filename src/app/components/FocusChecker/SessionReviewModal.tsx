@@ -2,23 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFocusTimer } from '../../context/FocusTimerContext';
+import { RangeInput } from '../ui/RangeInput';
 
 function Slider({
   label, value, onChange, accent, hint,
-}: { label: string; value: number; onChange: (v: number) => void; accent: string; hint?: string }) {
+}: { label: string; value: number; onChange: (v: number) => void; accent: "sky" | "amber" | "emerald" | "indigo" | "rose"; hint?: string }) {
   return (
     <div>
       <div className="flex justify-between text-xs font-medium mb-1">
         <span className="text-slate-600 dark:text-slate-300">{label}</span>
         <span className="font-bold text-slate-900 dark:text-white">{value}/10</span>
       </div>
-      <input
-        type="range" min="1" max="10" value={value}
+      <RangeInput
+        min={1} max={10} value={value} accent={accent}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={`w-full ${accent}`}
         aria-label={label}
       />
-      {hint && <p className="text-[10px] text-slate-400 mt-0.5">{hint}</p>}
+      {hint && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{hint}</p>}
     </div>
   );
 }
@@ -54,7 +54,7 @@ export function SessionReviewModal() {
                 <h4 id="review-title" className="text-base font-bold text-slate-900 dark:text-white">
                   {pendingReview.completed ? 'Block complete' : 'Block ended early'}
                 </h4>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
                   {pendingReview.actualMinutes} min of focus. Rating each session is how your patterns emerge.
                 </p>
               </div>
@@ -76,9 +76,9 @@ export function SessionReviewModal() {
               />
             </div>
 
-            <Slider label="Focus quality" value={focusQuality} onChange={setFocusQuality} accent="accent-sky-500" />
-            <Slider label="Clarity on the task" value={contentClarity} onChange={setContentClarity} accent="accent-indigo-500" />
-            <Slider label="Frustration" value={frustrationLevel} onChange={setFrustrationLevel} accent="accent-rose-500" hint="1 = none, 10 = very frustrated" />
+            <Slider label="Focus quality" value={focusQuality} onChange={setFocusQuality} accent="sky" />
+            <Slider label="Clarity on the task" value={contentClarity} onChange={setContentClarity} accent="indigo" />
+            <Slider label="Frustration" value={frustrationLevel} onChange={setFrustrationLevel} accent="rose" hint="1 = none, 10 = very frustrated" />
 
             <div className="clay-card-subtle p-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -94,14 +94,14 @@ export function SessionReviewModal() {
               </div>
               {attentionFaded && (
                 <div className="pt-1.5">
-                  <div className="flex justify-between text-[10px] text-slate-500 mb-0.5">
+                  <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400 mb-0.5">
                     <span>Faded after about</span>
                     <span className="font-bold text-amber-600">{fadeMinutes} min</span>
                   </div>
-                  <input
-                    type="range" min="1" max={Math.max(1, pendingReview.actualMinutes)} value={fadeMinutes}
+                  <RangeInput
+                    min={1} max={Math.max(1, pendingReview.actualMinutes)} value={fadeMinutes} accent="amber"
                     onChange={(e) => setFadeMinutes(Number(e.target.value))}
-                    className="w-full accent-amber-500" aria-label="Minutes before attention faded"
+                    aria-label="Minutes before attention faded"
                   />
                 </div>
               )}
