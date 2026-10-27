@@ -308,7 +308,12 @@ export function FocusTimerProvider({
 
   /** Stop the current block. Meaningful partial blocks are offered for logging. */
   const finishEarly = () => {
-    const focusRemaining = isBreak ? savedFocusRemainingMs ?? selectedDuration * 60000 : liveRemainingMs;
+    if (isBreak) {
+      clearSession();
+      toast.info('Break ended — timer reset');
+      return;
+    }
+    const focusRemaining = liveRemainingMs;
     const elapsedMin = (selectedDuration * 60000 - focusRemaining) / 60000;
     if (sessionStartTime && elapsedMin >= MIN_LOGGABLE_MINUTES) {
       setIsActive(false);
@@ -316,10 +321,18 @@ export function FocusTimerProvider({
       openReview(false, focusRemaining);
     } else {
       clearSession();
+      toast.info('Timer reset');
     }
   };
 
-  const resetTimer = () => finishEarly();
+  const resetTimer = () => {
+    if (isBreak) {
+      clearSession();
+      toast.info('Break ended — timer reset');
+      return;
+    }
+    finishEarly();
+  };
 
   const takeBreak = () => {
     if (isBreak) return;
@@ -337,9 +350,17 @@ export function FocusTimerProvider({
   /** End the current break now. */
   const skipBreak = () => {
     if (!isBreak) return;
-    setEndAt(Date.now());
-    if (!isActive) {
-      setIsActive(true);
+    setIsBreak(false);
+    setIsActive(false);
+    setEndAt(null);
+    const resume = savedFocusRemainingMs;
+    setSavedFocusRemainingMs(null);
+    if (resume && resume > 0) {
+      setRemainingMs(resume);
+      toast.info('Break skipped — press play to continue');
+    } else {
+      setRemainingMs(selectedDuration * 60000);
+      toast.info('Break skipped — ready for next round');
     }
   };
 
@@ -407,13 +428,14 @@ export function FocusTimerProvider({
     };
     onSessionSaved?.(session);
     setPendingReview(null);
-    if (!isBreak) clearSession();
+    if (!isBreak || !pendingReview.completed) clearSession();
     return session;
   };
 
   const dismissReview = () => {
+    const wasEarly = !pendingReview?.completed;
     setPendingReview(null);
-    if (!isBreak) clearSession();
+    if (!isBreak || wasEarly) clearSession();
   };
 
   const elapsed = totalDurationSeconds - secondsRemaining;

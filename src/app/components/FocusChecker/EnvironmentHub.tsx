@@ -119,27 +119,27 @@ export function EnvironmentHub({
         {/* Daily goal */}
         <button
           onClick={onCycleDailyGoal}
-          className="w-full text-left clay-tile-emerald p-2.5 rounded-xl shadow-md space-y-1.5"
+          className="w-full text-left clay-card-subtle p-2.5 rounded-xl shadow-sm space-y-1.5"
           title="Tap to change your daily goal"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1 rounded-lg bg-white/20 text-white">
+              <div className="p-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
                 <Target size={15} />
               </div>
               <div>
-                <div className="text-[11px] font-bold">Daily focus goal</div>
-                <div className="text-xs sm:text-sm font-extrabold font-mono leading-tight">
+                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Daily focus goal</div>
+                <div className="text-xs sm:text-sm font-extrabold font-mono text-slate-900 dark:text-white leading-tight">
                   {today.focusMinutes} / {dailyGoalMinutes} min
                 </div>
               </div>
             </div>
-            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/25 text-white">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
               {goalPct >= 100 ? 'Goal met' : `${goalPct}%`}
             </span>
           </div>
-          <div className="h-1 rounded-full bg-white/25 overflow-hidden">
-            <div className="h-full rounded-full bg-white transition-all duration-500" style={{ width: `${goalPct}%` }} />
+          <div className="h-1.5 rounded-full bg-slate-200/80 dark:bg-slate-700/80 overflow-hidden">
+            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${goalPct}%` }} />
           </div>
         </button>
 

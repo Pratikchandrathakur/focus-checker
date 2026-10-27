@@ -127,21 +127,15 @@ export function TactileFocusDial({
 
         {/* Stress Reset Tile */}
         <button
-          onClick={() => {
-            setMode('reset');
-            onOpenStressReset();
-          }}
-          className={`p-1.5 sm:p-2 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all duration-200 ${
-            activeMode === 'reset'
-              ? 'clay-tile-emerald scale-[1.02]'
-              : 'clay-button text-slate-700 dark:text-slate-300'
-          }`}
+          onClick={onOpenStressReset}
+          className="p-1.5 sm:p-2 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all duration-200 clay-button text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400"
+          title="Open guided 2-minute breathing exercise"
         >
-          <div className={`p-1 rounded-xl ${activeMode === 'reset' ? 'bg-white/20' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'}`}>
+          <div className="p-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
             <Wind size={15} />
           </div>
           <span className="text-[11px] font-semibold">Breathe</span>
-          <span className={`text-[11px] ${activeMode === 'reset' ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'}`}>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">
             2 min reset
           </span>
         </button>
@@ -245,7 +239,24 @@ export function TactileFocusDial({
           </div>
         </div>
 
-        {isPomodoro ? (
+        {isBreak ? (
+          <div className="flex items-center gap-2 mt-1 mb-2.5">
+            <button
+              onClick={skipBreak}
+              className="px-3 py-1 rounded-full text-xs font-semibold clay-button text-amber-600 dark:text-amber-400 flex items-center gap-1.5 shadow-sm"
+              title="Skip break and return to focus"
+            >
+              <SkipForward size={12} /> Skip break
+            </button>
+            <button
+              onClick={resetTimer}
+              className="px-3 py-1 rounded-full text-xs font-semibold clay-button text-slate-500 hover:text-red-500 flex items-center gap-1.5 shadow-sm"
+              title="End break and reset timer completely"
+            >
+              <RotateCcw size={12} /> Reset timer
+            </button>
+          </div>
+        ) : isPomodoro ? (
           <div className="flex items-center gap-2 mt-1 mb-2.5">
             <div
               className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-200/60 dark:border-slate-700/60 shadow-sm"
@@ -272,24 +283,15 @@ export function TactileFocusDial({
                 {Math.min(pomodoroRound + 1, pomodoro.rounds)}/{pomodoro.rounds}
               </span>
             </div>
-            {isBreak ? (
-              <button
-                onClick={skipBreak}
-                className="px-2.5 py-1 rounded-full text-[11px] font-semibold clay-button text-slate-600 dark:text-slate-300 flex items-center gap-1"
-              >
-                <SkipForward size={12} /> Skip break
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowPomoSettings((v) => !v)}
-                aria-expanded={showPomoSettings}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showPomoSettings ? 'clay-tile-amber' : 'clay-button text-slate-600 dark:text-slate-300'}`}
-                title={`${INTERVAL_MODE.label} settings`}
-                aria-label={`${INTERVAL_MODE.label} settings`}
-              >
-                <SlidersHorizontal size={14} />
-              </button>
-            )}
+            <button
+              onClick={() => setShowPomoSettings((v) => !v)}
+              aria-expanded={showPomoSettings}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showPomoSettings ? 'clay-tile-amber' : 'clay-button text-slate-600 dark:text-slate-300'}`}
+              title={`${INTERVAL_MODE.label} settings`}
+              aria-label={`${INTERVAL_MODE.label} settings`}
+            >
+              <SlidersHorizontal size={14} />
+            </button>
           </div>
         ) : (
           <div className="flex items-center gap-1 mt-0.5 mb-1.5 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-full border border-slate-200/60 dark:border-slate-700/60">
@@ -350,11 +352,12 @@ export function TactileFocusDial({
       <div className="flex items-center justify-center gap-2.5 mt-1.5 sm:mt-2 mb-0.5">
         {/* Break trigger button */}
         <button
-          onClick={takeBreak}
-          disabled={isBreak}
-          className="w-9 h-9 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300 disabled:opacity-40"
-          title="Take a quick 5-minute break"
-          aria-label="Take a 5-minute break"
+          onClick={isBreak ? skipBreak : takeBreak}
+          className={`w-9 h-9 rounded-xl clay-button flex items-center justify-center transition-all ${
+            isBreak ? 'text-amber-500 ring-2 ring-amber-400/50' : 'text-slate-600 dark:text-slate-300'
+          }`}
+          title={isBreak ? 'End break now' : 'Take a quick 5-minute break'}
+          aria-label={isBreak ? 'End break' : 'Take a 5-minute break'}
         >
           <Coffee size={15} />
         </button>
@@ -362,7 +365,7 @@ export function TactileFocusDial({
         {/* Main Action Disc (Fingerprint styled tactile button) */}
         <button
           onClick={toggleTimer}
-          aria-label={isActive ? 'Pause' : 'Start focus block'}
+          aria-label={isActive ? 'Pause' : isBreak ? 'Resume break' : 'Start focus block'}
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
             isActive
               ? 'clay-tile-amber scale-105'
@@ -379,9 +382,9 @@ export function TactileFocusDial({
         {/* Reset / Stop button */}
         <button
           onClick={resetTimer}
-          className="w-9 h-9 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300"
-          title={hasStarted ? 'End block (5+ min blocks can be logged)' : 'Reset timer'}
-          aria-label={hasStarted ? 'End block' : 'Reset timer'}
+          className="w-9 h-9 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-red-500 transition-colors"
+          title={isBreak ? 'End break & reset timer' : hasStarted ? 'End block (5+ min blocks can be logged)' : 'Reset timer'}
+          aria-label={isBreak ? 'End break & reset timer' : hasStarted ? 'End block' : 'Reset timer'}
         >
           <RotateCcw size={15} />
         </button>
