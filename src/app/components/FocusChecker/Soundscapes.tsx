@@ -1,15 +1,22 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX, Headphones, Zap, Sparkles, Waves, CloudRain } from 'lucide-react';
+import { Volume2, VolumeX, Headphones, Zap, Sparkles, Waves, CloudRain, Lock, Mountain } from 'lucide-react';
 import { audioEngine } from '../../services/audioEngine';
 import { toast } from 'sonner';
 import { RangeInput } from '../ui/RangeInput';
+import { useEntitlement } from '../../context/EntitlementContext';
+import { MixBuilder } from '../Pro/MixBuilder';
+import { ProLock } from '../Pro/ProLock';
+
+type Sel = 'gamma' | 'alpha' | 'pink' | 'rain' | 'brown' | 'waves';
 
 interface SoundscapesProps {
   activeSoundscape: string;
-  onSelectPreset: (preset: 'gamma' | 'alpha' | 'pink' | 'rain' | 'none') => void;
+  onSelectPreset: (preset: Sel | 'mix' | 'none') => void;
+  userId?: string | null;
 }
 
-export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesProps) {
+export function Soundscapes({ activeSoundscape, onSelectPreset, userId = null }: SoundscapesProps) {
+  const { ent, openUpgrade } = useEntitlement();
   const [volume, setVolume] = useState<number>(0.6);
 
   const presets = [
@@ -45,9 +52,29 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
       gradient: 'clay-tile-emerald',
       tag: 'Calm',
     },
+    {
+      id: 'brown' as const,
+      name: 'Brown Noise',
+      description: 'Deep, low rumble that blankets open-office and street noise. Works on any speaker.',
+      icon: Mountain,
+      gradient: 'clay-tile-violet',
+      tag: 'Pro · Deep mask',
+      pro: true,
+    },
+    {
+      id: 'waves' as const,
+      name: 'Ocean Waves',
+      description: 'Slow, rolling waves generated live, so they never loop.',
+      icon: Waves,
+      gradient: 'clay-tile-cyan',
+      tag: 'Pro · Calm',
+      pro: true,
+    },
   ];
 
-  const handleToggle = (id: 'gamma' | 'alpha' | 'pink' | 'rain') => {
+  const NAMES: Record<Sel, string> = { gamma: '40Hz focus tone', alpha: '10Hz relax tone', pink: 'pink noise', rain: 'rain', brown: 'brown noise', waves: 'ocean waves' };
+  const handleToggle = (id: Sel) => {
+    if ((id === 'brown' || id === 'waves') && !ent.pro) { openUpgrade(); return; }
     if (activeSoundscape === id) {
       audioEngine.stop();
       onSelectPreset('none');
@@ -55,7 +82,7 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
     } else {
       audioEngine.playPreset(id, volume);
       onSelectPreset(id);
-      toast.success(`Playing ${id === 'gamma' ? '40Hz focus tone' : id === 'alpha' ? '10Hz relax tone' : id === 'pink' ? 'pink noise' : 'rain'}`);
+      toast.success(`Playing ${NAMES[id]}`);
     }
   };
 
@@ -137,10 +164,10 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
                   <div className={`p-1.5 rounded-lg ${isPlaying ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
                     <Icon size={16} />
                   </div>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
                     isPlaying ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}>
-                    {p.tag}
+                    {'pro' in p && p.pro && !ent.pro && <Lock size={10} aria-label="Pro" />}{p.tag}
                   </span>
                 </div>
 
@@ -150,13 +177,19 @@ export function Soundscapes({ activeSoundscape, onSelectPreset }: SoundscapesPro
                 </p>
 
                 <div className="mt-2.5 flex items-center justify-between text-xs font-semibold">
-                  <span>{isPlaying ? 'Playing · tap to stop' : 'Tap to play'}</span>
+                  <span>{isPlaying ? 'Playing · tap to stop' : 'pro' in p && p.pro && !ent.pro ? 'Pro · tap to learn more' : 'Tap to play'}</span>
                   <div className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-white animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`} />
                 </div>
               </button>
             );
           })}
         </div>
+
+        {ent.pro ? (
+          <MixBuilder userId={userId} masterVolume={volume} onPlay={() => onSelectPreset('mix')} />
+        ) : (
+          <ProLock title="Custom sound mixes" body="Layer up to six sounds, set each volume and save your own mixes to every device." onUpgrade={openUpgrade} />
+        )}
 
         {/* Info callout */}
         <div className="p-2.5 rounded-xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 text-xs text-sky-900 dark:text-sky-200 leading-relaxed">

@@ -3,7 +3,6 @@ import '@fontsource-variable/bricolage-grotesque';
 import '@fontsource-variable/instrument-sans';
 import '../../../styles/landing.css';
 import {
-  Zap,
   Wind,
   Headphones,
   ShieldCheck,
@@ -21,6 +20,7 @@ import {
 } from 'lucide-react';
 import { SITE, PRICING, FREE_FEATURES, PRO_FEATURES } from '../../config';
 import { InstallAppButton } from '../InstallAppButton';
+import { LogoMark, Wordmark } from '../Logo';
 
 interface LandingPageProps {
   onEnterApp: () => void;
@@ -28,6 +28,8 @@ interface LandingPageProps {
   onOpenStressReset: () => void;
   onNavigate: (path: string) => void;
   onOpenAuth: (mode: 'login' | 'register') => void;
+  /** Set when Pro is purchasable: the Pro button opens the upgrade dialog instead of the waitlist. */
+  onUpgrade?: () => void;
   darkMode?: boolean;
   onToggleDark?: () => void;
 }
@@ -35,7 +37,7 @@ interface LandingPageProps {
 const FAQ = [
   {
     q: 'Is it really free?',
-    a: 'Yes. The timer, breathing resets, readiness check-ins, focus sounds, analytics and journal are free, and you can use them without an account. A paid Pro plan for people who use FocusChecker every day is coming later.',
+    a: 'Yes. The timer, breathing resets, readiness check-ins, focus sounds, analytics and journal are free, and you can use them without an account. Pro, a paid plan for people who use FocusChecker every day, adds unlimited synced history, longer analytics, personal patterns, custom sound mixes and a weekly email report.',
   },
   {
     q: 'Do I need an account?',
@@ -159,6 +161,7 @@ export function LandingPage({
   onOpenStressReset,
   onNavigate,
   onOpenAuth,
+  onUpgrade,
   darkMode,
   onToggleDark,
 }: LandingPageProps) {
@@ -195,10 +198,8 @@ export function LandingPage({
       <header className="sticky top-0 z-40 backdrop-blur-xl border-b" style={{ background: 'color-mix(in srgb, var(--ink) 94%, transparent)', borderColor: 'var(--on-ink-line)', color: 'var(--on-ink)' }}>
         <div className={`${shell} h-16 flex items-center justify-between gap-3`}>
           <a {...link('/')} className="flex items-center gap-2.5 shrink-0" aria-label="FocusChecker home">
-            <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'var(--sky)' }}>
-              <Zap size={18} style={{ color: '#04202f' }} />
-            </span>
-            <span className="lp-display text-lg">FocusChecker</span>
+            <LogoMark size={38} />
+            <Wordmark className="text-xl" />
           </a>
 
           <nav className="flex items-center gap-1 sm:gap-2" aria-label="Site">
@@ -451,9 +452,13 @@ export function LandingPage({
                 ))}
               </ul>
               <div className="space-y-3">
-                <a href={proCta()} target={PRICING.waitlistUrl ? '_blank' : undefined} rel="noopener noreferrer" className="lp-btn lp-btn-primary w-full">
-                  {PRICING.proAvailable ? 'Upgrade to Pro' : <><Lock size={15} /> Join the Pro waitlist</>}
-                </a>
+                {PRICING.proAvailable && onUpgrade ? (
+                  <button type="button" onClick={onUpgrade} className="lp-btn lp-btn-primary w-full">Upgrade to Pro</button>
+                ) : (
+                  <a href={proCta()} target={PRICING.waitlistUrl ? '_blank' : undefined} rel="noopener noreferrer" className="lp-btn lp-btn-primary w-full">
+                    {PRICING.proAvailable ? 'Upgrade to Pro' : <><Lock size={15} /> Join the Pro waitlist</>}
+                  </a>
+                )}
                 {!PRICING.proAvailable && (
                   <p className="text-sm text-center" style={{ color: 'var(--on-ink-muted)' }}>Pro isn't live yet. The waitlist is free, with no payment details.</p>
                 )}
@@ -519,8 +524,8 @@ export function LandingPage({
         <div className={`${shell} py-14 grid grid-cols-2 md:grid-cols-4 gap-10 text-[15px]`}>
           <div className="col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
-              <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'var(--sky)' }}><Zap size={18} style={{ color: '#04202f' }} /></span>
-              <span className="lp-display text-xl">FocusChecker</span>
+              <LogoMark size={40} />
+              <Wordmark className="text-2xl" />
             </div>
             <p className="max-w-xs leading-relaxed" style={{ color: 'var(--on-ink-muted)' }}>
               Focus timer, 2-minute breathing resets and attention insights. Private, free and works offline.

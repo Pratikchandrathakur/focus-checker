@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { User, Mail, Lock, LogIn, UserPlus, Sparkles, X, ShieldCheck, Send, KeyRound, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -15,6 +15,10 @@ interface AuthModalProps {
 }
 
 const MIN_PASSWORD = 8;
+const MAX_PASSWORD = 128; // bcrypt-style limits; also stops absurd payloads
+// Slows scripted guessing from this tab. The real rate limit is Supabase's, server side.
+const MAX_FAILS = 5;
+const LOCK_MS = 30_000;
 
 function friendlyError(msg: string) {
   const m = msg.toLowerCase();
@@ -53,8 +57,15 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
 
   if (!isOpen) return null;
 
+  const fails = useRef(0);
+  const lockedUntil = useRef(0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (Date.now() < lockedUntil.current) {
+      toast.error(`Too many attempts. Try again in ${Math.ceil((lockedUntil.current - Date.now()) / 1000)} seconds.`);
+      return;
+    }
     if (!supabase) {
       toast.error('Accounts are not set up on this server yet. Use guest access for now.');
       return;
@@ -68,6 +79,10 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
       toast.error(mode === 'login' ? 'Please enter your password' : `Password must be at least ${MIN_PASSWORD} characters`);
       return;
     }
+    if (password.length > MAX_PASSWORD) {
+      toast.error(`Password must be at most ${MAX_PASSWORD} characters`);
+      return;
+    }
     if (mode === 'register' && !name.trim()) {
       toast.error('Please enter your name');
       return;
@@ -78,6 +93,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
       if (mode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (error) throw error;
+        fails.current = 0;
         const u = profileFromUser(data.user);
         toast.success(`Welcome back, ${u.name}!`);
         onAuthSuccess(u);
@@ -116,6 +132,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, defaultMode = 'login
         onClose();
       }
     } catch (err) {
+      if (mode === 'login' && ++fails.current >= MAX_FAILS) { lockedUntil.current = Date.now() + LOCK_MS; fails.current = 0; }
       toast.error(friendlyError(err instanceof Error ? err.message : String(err)));
     } finally {
       setBusy(false);

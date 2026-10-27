@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Zap, Coffee } from 'lucide-react';
+import { safeJsonParse, sanitizePomodoro, sanitizeTimerState } from '../services/validators';
 import { FocusSession, ReadinessCheck } from '../types';
 import { audioEngine } from '../services/audioEngine';
 import { INTERVAL_MODE } from '../config';
@@ -29,7 +30,7 @@ export const DEFAULT_POMODORO: PomodoroSettings = {
 
 function loadPomodoro(): PomodoroSettings {
   try {
-    return { ...DEFAULT_POMODORO, ...JSON.parse(localStorage.getItem(POMO_KEY) || '{}') };
+    return sanitizePomodoro(safeJsonParse(localStorage.getItem(POMO_KEY)), DEFAULT_POMODORO);
   } catch {
     return DEFAULT_POMODORO;
   }
@@ -105,7 +106,7 @@ interface PersistedTimer {
 
 function loadPersisted(): Partial<PersistedTimer> {
   try {
-    return JSON.parse(localStorage.getItem(PERSIST_KEY) || '{}');
+    return sanitizeTimerState(safeJsonParse(localStorage.getItem(PERSIST_KEY)));
   } catch {
     return {};
   }

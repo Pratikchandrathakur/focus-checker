@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { Toaster, toast } from 'sonner';
 import { 
-  Zap, 
   Target, 
   Wind, 
   Headphones, 
@@ -39,6 +38,7 @@ import { LegalPage } from './components/LandingPage/LegalPage';
 import { History } from './components/FocusChecker/History';
 import { AuthModal, type AuthMode } from './components/Auth/AuthModal';
 import { InstallAppButton } from './components/InstallAppButton';
+import { LogoMark, Wordmark } from './components/Logo';
 import { supabase, cloudEnabled, profileFromUser, fetchHistory, upsertHistory, deleteAllHistory, mergeHistory } from './services/supabase';
 
 import { 
@@ -51,6 +51,12 @@ import {
 } from './types';
 import { audioEngine } from './services/audioEngine';
 import { computeStreak, todayStats, latestReadinessToday } from './services/stats';
+import { parseHistory, parseGuestProfile, safeJsonParse } from './services/validators';
+import { selectForUpload } from './services/sync';
+import { EntitlementProvider, useEntitlement } from './context/EntitlementContext';
+import { UpgradeDialog } from './components/Pro/UpgradeDialog';
+import { PRICING } from './config';
+import { Crown } from 'lucide-react';
 
 // Recharts is heavy — only load it when Analytics is opened.
 const Dashboard = lazy(() => import('./components/FocusChecker/Dashboard').then((m) => ({ default: m.Dashboard })));
@@ -102,10 +108,7 @@ function writeStorage(key: string, value: string) {
 // LocalStorage helpers (wrapped: storage can be unavailable in private modes)
 function loadHistory(): HistoryItem[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as HistoryItem[]) : [];
+    return parseHistory(safeJsonParse(localStorage.getItem(STORAGE_KEYS.HISTORY)));
   } catch {
     return [];
   }
@@ -123,11 +126,8 @@ function loadDarkMode(): boolean {
 
 function loadAuthUser(): UserProfile | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.AUTH_USER);
-    if (!raw) return null;
-    const u = JSON.parse(raw) as UserProfile;
-    // Cloud sessions are restored by Supabase; only guest profiles live here.
-    return u && u.id === 'guest' ? u : null;
+    // Cloud sessions are restored by Supabase; only a (validated) guest profile may live here.
+    return parseGuestProfile(safeJsonParse(localStorage.getItem(STORAGE_KEYS.AUTH_USER)));
   } catch {
     return null;
   }
@@ -149,6 +149,86 @@ export default function App() {
   );
 }
 
+/**
+ * Keeps this device's journal and the cloud copy in step. Free accounts sync the last 7 days (the database
+ * refuses older rows); Pro accounts sync everything. Waits for the plan before the first upload.
+ */
+function HistorySync({
+  user, isCloudUser, history, setHistory, setSyncState,
+}: {
+  user: UserProfile | null;
+  isCloudUser: boolean;
+  history: HistoryItem[];
+  setHistory: React.Dispatch<React.SetStateAction<HistoryItem[]>>;
+  setSyncState: (s: 'off' | 'syncing' | 'synced' | 'error') => void;
+}) {
+  const { ent, loading } = useEntitlement();
+  const syncedIds = useRef<Set<number> | null>(null);
+
+  // On sign-in (and when the plan changes): merge cloud + this device's history, upload what is only local.
+  useEffect(() => {
+    if (!isCloudUser || !user) {
+      syncedIds.current = null;
+      setSyncState('off');
+      return;
+    }
+    if (loading) return;
+    let cancelled = false;
+    setSyncState('syncing');
+    (async () => {
+      try {
+        const remote = await fetchHistory();
+        if (cancelled) return;
+        const remoteIds = new Set(remote.map((h) => h.id));
+        let localOnly: HistoryItem[] = [];
+        setHistory((local) => {
+          localOnly = local.filter((h) => !remoteIds.has(h.id));
+          return mergeHistory(remote, local);
+        });
+        const eligible = selectForUpload(localOnly, ent);
+        await upsertHistory(user.id, eligible);
+        syncedIds.current = new Set([...remoteIds, ...eligible.map((h) => h.id)]);
+        if (!cancelled) setSyncState('synced');
+      } catch {
+        if (!cancelled) setSyncState('error');
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCloudUser, user?.id, loading, ent.pro]);
+
+  // Push new entries as they are logged.
+  useEffect(() => {
+    if (!isCloudUser || !user || !syncedIds.current) return;
+    const fresh = selectForUpload(history.filter((h) => !syncedIds.current!.has(h.id)), ent);
+    if (!fresh.length) return;
+    fresh.forEach((h) => syncedIds.current!.add(h.id));
+    setSyncState('syncing');
+    upsertHistory(user.id, fresh)
+      .then(() => setSyncState('synced'))
+      .catch(() => {
+        fresh.forEach((h) => syncedIds.current!.delete(h.id));
+        setSyncState('error');
+      });
+  }, [history, isCloudUser, user, ent]);
+
+  return null;
+}
+
+function ProBadge({ onClick }: { onClick: () => void }) {
+  const { ent } = useEntitlement();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold ${ent.pro ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'clay-button text-amber-600 dark:text-amber-400'}`}
+      title={ent.pro ? 'Your Pro plan' : 'See FocusChecker Pro'}
+    >
+      <Crown size={13} aria-hidden /> {ent.pro ? 'Pro' : 'Go Pro'}
+    </button>
+  );
+}
+
 function AppContent({
   history,
   setHistory,
@@ -164,13 +244,25 @@ function AppContent({
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [syncState, setSyncState] = useState<'off' | 'syncing' | 'synced' | 'error'>('off');
-  const syncedIds = useRef<Set<number> | null>(null);
   const isCloudUser = Boolean(cloudEnabled && user && user.id !== 'guest');
 
   const openAuth = (mode: AuthMode) => {
     setAuthMode(mode);
     setAuthModalOpen(true);
   };
+
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const openUpgrade = useCallback(() => setUpgradeOpen(true), []);
+  // Coming back from checkout (?upgraded=1): show the dialog, which re-checks the plan, and tidy the URL.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('upgraded') === '1') {
+      setUpgradeOpen(true);
+      sp.delete('upgraded');
+      const q = sp.toString();
+      window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : ''));
+    }
+  }, []);
 
   // Restore a signed-in session and follow auth changes (magic link, password reset, other tabs).
   useEffect(() => {
@@ -191,50 +283,6 @@ function AppContent({
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // On sign-in: merge cloud + this device's history, upload anything only stored locally.
-  useEffect(() => {
-    if (!isCloudUser || !user) {
-      syncedIds.current = null;
-      setSyncState('off');
-      return;
-    }
-    let cancelled = false;
-    setSyncState('syncing');
-    (async () => {
-      try {
-        const remote = await fetchHistory();
-        if (cancelled) return;
-        const remoteIds = new Set(remote.map((h) => h.id));
-        let localOnly: HistoryItem[] = [];
-        setHistory((local) => {
-          localOnly = local.filter((h) => !remoteIds.has(h.id));
-          return mergeHistory(remote, local);
-        });
-        await upsertHistory(user.id, localOnly);
-        syncedIds.current = new Set([...remoteIds, ...localOnly.map((h) => h.id)]);
-        if (!cancelled) setSyncState('synced');
-      } catch {
-        if (!cancelled) setSyncState('error');
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCloudUser, user?.id]);
-
-  // Push new entries as they are logged.
-  useEffect(() => {
-    if (!isCloudUser || !user || !syncedIds.current) return;
-    const fresh = history.filter((h) => !syncedIds.current!.has(h.id));
-    if (!fresh.length) return;
-    fresh.forEach((h) => syncedIds.current!.add(h.id));
-    setSyncState('syncing');
-    upsertHistory(user.id, fresh)
-      .then(() => setSyncState('synced'))
-      .catch(() => {
-        fresh.forEach((h) => syncedIds.current!.delete(h.id));
-        setSyncState('error');
-      });
-  }, [history, isCloudUser, user]);
   const [activeSoundscape, setActiveSoundscape] = useState<string>('none');
   const [warmLight, setWarmLight] = useState<boolean>(() => {
     try { return localStorage.getItem(WARM_LIGHT_KEY) === 'true'; } catch { return false; }
@@ -320,7 +368,6 @@ function AppContent({
     if (isCloudUser && user) {
       try {
         await deleteAllHistory(user.id);
-        syncedIds.current = new Set();
       } catch {
         toast.error('Cleared on this device, but the cloud copy could not be deleted. Try again when online.');
         return;
@@ -363,6 +410,9 @@ function AppContent({
   ];
 
   return (
+    <EntitlementProvider userId={isCloudUser && user ? user.id : null} openUpgrade={openUpgrade}>
+    <HistorySync user={user} isCloudUser={isCloudUser} history={history} setHistory={setHistory} setSyncState={setSyncState} />
+    <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} user={user} onOpenAuth={openAuth} />
     <div className="min-h-screen clay-canvas font-sans text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Toaster position="top-center" richColors theme={darkMode ? 'dark' : 'light'} />
 
@@ -402,6 +452,7 @@ function AppContent({
           onOpenStressReset={() => setActiveTab('stress')}
           onNavigate={navigatePath}
           onOpenAuth={openAuth}
+          onUpgrade={PRICING.proAvailable ? openUpgrade : undefined}
           darkMode={darkMode}
           onToggleDark={toggleDarkMode}
         />
@@ -415,15 +466,15 @@ function AppContent({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => navigate({ page: 'landing' })}
-                  className="w-9 h-9 rounded-2xl clay-tile-cyan flex items-center justify-center shadow-md cursor-pointer"
+                  className="cursor-pointer rounded-[11px] shadow-md"
                   title="FocusChecker home"
                   aria-label="FocusChecker home"
                 >
-                  <Zap size={18} className="text-white" />
+                  <LogoMark size={36} />
                 </button>
                 <div>
                   <h1 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
-                    Focus<span className="text-sky-500">Checker</span>
+                    <Wordmark />
                   </h1>
                   <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                     Focus · Breathe · Learn
@@ -486,13 +537,15 @@ function AppContent({
                   {darkMode ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
 
+                <ProBadge onClick={openUpgrade} />
+
                 {/* User profile / Login */}
                 {user ? (
                   <div className="flex items-center gap-2">
                     {isCloudUser && (
                       <span
                         className={`hidden sm:flex w-8 h-8 rounded-xl items-center justify-center ${syncState === 'error' ? 'text-amber-500' : 'text-emerald-500'}`}
-                        title={syncState === 'error' ? 'Sync paused — your data is safe on this device and will sync later' : syncState === 'syncing' ? 'Syncing…' : 'Synced to your account'}
+                        title={syncState === 'error' ? 'Sync paused — your data is safe on this device and will sync later' : syncState === 'syncing' ? 'Syncing…' : 'Synced to your account (free accounts sync the last 7 days)'}
                       >
                         {syncState === 'error' ? <CloudOff size={16} /> : <Cloud size={16} className={syncState === 'syncing' ? 'animate-pulse' : ''} />}
                       </span>
@@ -626,8 +679,11 @@ function AppContent({
                 {activeTab === 'sound' && (
                   <Soundscapes
                     activeSoundscape={activeSoundscape}
+                    userId={isCloudUser && user ? user.id : null}
                     onSelectPreset={(preset) => {
-                      if (preset === 'none') {
+                      if (preset === 'mix') {
+                        setActiveSoundscape('mix');
+                      } else if (preset === 'none') {
                         audioEngine.stop();
                         setActiveSoundscape('none');
                       } else {
@@ -645,6 +701,7 @@ function AppContent({
                       onOpenQuickCheck={() => setActiveTab('check')}
                       onOpenStressReset={() => setActiveTab('stress')}
                       onOpenDial={() => setActiveTab('dial')}
+                      userId={isCloudUser && user ? user.id : null}
                     />
                   </Suspense>
                 )}
@@ -690,5 +747,6 @@ function AppContent({
         </div>
       )}
     </div>
+    </EntitlementProvider>
   );
 }

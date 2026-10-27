@@ -1,10 +1,14 @@
 // Web Audio Engine for Real Neuroscience-based Focus Soundscapes & Stress Relief Chimes
 // Uses pure browser Web Audio API — zero external files, 100% offline, zero latency.
 
-class SoundscapeEngine {
+export type SoundPreset = 'gamma' | 'alpha' | 'pink' | 'rain' | 'brown' | 'waves';
+const PRESETS: SoundPreset[] = ['gamma', 'alpha', 'pink', 'rain', 'brown', 'waves'];
+export const MAX_MIX_LAYERS = 6;
+
+export class SoundscapeEngine {
   private ctx: AudioContext | null = null;
   private isPlaying: boolean = false;
-  private currentPreset: 'gamma' | 'alpha' | 'pink' | 'rain' | 'none' = 'none';
+  private currentPreset: SoundPreset | 'mix' | 'none' = 'none';
 
   // Audio nodes
   private masterGain: GainNode | null = null;
@@ -51,30 +55,45 @@ class SoundscapeEngine {
     this.currentPreset = 'none';
   }
 
-  public playPreset(preset: 'gamma' | 'alpha' | 'pink' | 'rain', volume = 0.5) {
+  public playPreset(preset: SoundPreset, volume = 0.5) {
+    this.playMix([{ preset, volume: 1 }], volume, preset);
+  }
+
+  /**
+   * Plays several sounds at once. Layer volumes are scaled so that stacking sounds never gets louder
+   * than the master volume, and every value is clamped (this input can come from saved cloud data).
+   */
+  public playMix(layers: { preset: SoundPreset; volume: number }[], masterVolume = 0.5, label: SoundPreset | 'mix' = 'mix') {
     this.initContext();
     if (!this.ctx) return;
-
-    // First stop all previous audio immediately
     this.stop();
 
-    // Create fresh master gain
+    const clean = layers
+      .filter((l) => l && PRESETS.includes(l.preset))
+      .slice(0, MAX_MIX_LAYERS)
+      .map((l) => ({ preset: l.preset, volume: Number.isFinite(l.volume) ? Math.min(1, Math.max(0, l.volume)) : 0 }));
+    const sum = clean.reduce((a, l) => a + l.volume, 0);
+    const scale = 1 / Math.max(1, sum);
+
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.setValueAtTime(Math.max(0.05, volume), this.ctx.currentTime);
+    const master = Number.isFinite(masterVolume) ? Math.min(1, Math.max(0.05, masterVolume)) : 0.5;
+    this.masterGain.gain.setValueAtTime(master, this.ctx.currentTime);
     this.masterGain.connect(this.ctx.destination);
 
-    if (preset === 'gamma' || preset === 'alpha') {
-      this.playBinaural(preset);
-    } else if (preset === 'pink' || preset === 'rain') {
-      this.playFilteredNoise(preset);
+    for (const l of clean) {
+      const layerGain = this.ctx.createGain();
+      layerGain.gain.setValueAtTime(l.volume * scale, this.ctx.currentTime);
+      layerGain.connect(this.masterGain);
+      if (l.preset === 'gamma' || l.preset === 'alpha') this.playBinaural(l.preset, layerGain);
+      else this.playFilteredNoise(l.preset, layerGain);
     }
 
     this.isPlaying = true;
-    this.currentPreset = preset;
+    this.currentPreset = label;
   }
 
-  private playBinaural(type: 'gamma' | 'alpha') {
-    if (!this.ctx || !this.masterGain) return;
+  private playBinaural(type: 'gamma' | 'alpha', out: AudioNode) {
+    if (!this.ctx) return;
 
     // Carrier frequency in Hz
     const carrier = 220;
@@ -104,7 +123,7 @@ class SoundscapeEngine {
     rightGain.connect(merger, 0, 1);
 
     // Subtle background pink noise to smooth out pure tone
-    const subNoise = this.createNoiseBuffer(true);
+    const subNoise = this.createNoiseBuffer('pink');
     const subNoiseSrc = this.ctx.createBufferSource();
     subNoiseSrc.buffer = subNoise;
     subNoiseSrc.loop = true;
@@ -112,9 +131,9 @@ class SoundscapeEngine {
     const subNoiseGain = this.ctx.createGain();
     subNoiseGain.gain.setValueAtTime(0.08, this.ctx.currentTime);
     subNoiseSrc.connect(subNoiseGain);
-    subNoiseGain.connect(this.masterGain);
+    subNoiseGain.connect(out);
 
-    merger.connect(this.masterGain);
+    merger.connect(out);
 
     // Track all active sources so they stop immediately when stop() is called!
     this.activeSources.push(leftOsc, rightOsc, subNoiseSrc);
@@ -124,10 +143,10 @@ class SoundscapeEngine {
     subNoiseSrc.start();
   }
 
-  private playFilteredNoise(type: 'pink' | 'rain') {
-    if (!this.ctx || !this.masterGain) return;
+  private playFilteredNoise(type: 'pink' | 'rain' | 'brown' | 'waves', out: AudioNode) {
+    if (!this.ctx) return;
 
-    const buffer = this.createNoiseBuffer(type === 'pink');
+    const buffer = this.createNoiseBuffer(type === 'pink' || type === 'waves' ? 'pink' : type === 'brown' ? 'brown' : 'white');
     const noiseNode = this.ctx.createBufferSource();
     noiseNode.buffer = buffer;
     noiseNode.loop = true;
@@ -137,6 +156,12 @@ class SoundscapeEngine {
       filterNode.type = 'lowpass';
       filterNode.frequency.setValueAtTime(700, this.ctx.currentTime);
       filterNode.Q.setValueAtTime(1.1, this.ctx.currentTime);
+    } else if (type === 'brown') {
+      filterNode.type = 'lowpass';
+      filterNode.frequency.setValueAtTime(900, this.ctx.currentTime);
+    } else if (type === 'waves') {
+      filterNode.type = 'lowpass';
+      filterNode.frequency.setValueAtTime(600, this.ctx.currentTime);
     } else {
       filterNode.type = 'lowpass';
       filterNode.frequency.setValueAtTime(1100, this.ctx.currentTime);
@@ -147,19 +172,41 @@ class SoundscapeEngine {
 
     noiseNode.connect(filterNode);
     filterNode.connect(noiseGain);
-    noiseGain.connect(this.masterGain);
+    noiseGain.connect(out);
 
     this.activeSources.push(noiseNode);
     noiseNode.start();
+
+    if (type === 'waves') {
+      // A very slow swell (about one wave every 9 seconds) modulates the noise level.
+      noiseGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+      const lfo = this.ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(0.11, this.ctx.currentTime);
+      const depth = this.ctx.createGain();
+      depth.gain.setValueAtTime(0.22, this.ctx.currentTime);
+      lfo.connect(depth);
+      depth.connect(noiseGain.gain);
+      this.activeSources.push(lfo);
+      lfo.start();
+    }
   }
 
-  private createNoiseBuffer(isPink: boolean): AudioBuffer {
+  private createNoiseBuffer(kind: 'pink' | 'white' | 'brown'): AudioBuffer {
+    const isPink = kind === 'pink';
     if (!this.ctx) throw new Error('No audio context');
     const bufferSize = this.ctx.sampleRate * 2;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
 
-    if (isPink) {
+    if (kind === 'brown') {
+      let last = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        last = (last + 0.02 * white) / 1.02;
+        data[i] = last * 3.5;
+      }
+    } else if (isPink) {
       let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;

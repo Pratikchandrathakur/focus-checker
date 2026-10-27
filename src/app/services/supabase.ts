@@ -2,6 +2,7 @@
 // Without VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY the app runs in guest-only mode.
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { HistoryItem, UserProfile } from '../types';
+import { parseHistory } from './validators';
 
 // Default production public credentials (safe for client side with RLS enabled)
 const DEFAULT_SUPABASE_URL = 'https://cjxmuqejdnljhkdppgpx.supabase.co';
@@ -57,7 +58,8 @@ export async function fetchHistory(): Promise<HistoryItem[]> {
     .order('date', { ascending: false })
     .limit(5000);
   if (error) throw error;
-  return (data as Row[]).map((r) => r.payload);
+  // Cloud rows are validated like any other untrusted input before they reach the app.
+  return parseHistory((data as Row[]).map((r) => r.payload));
 }
 
 /** Insert or update items (idempotent by user + id). */
