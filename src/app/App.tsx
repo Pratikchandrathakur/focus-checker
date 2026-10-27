@@ -56,7 +56,10 @@ import { selectForUpload } from './services/sync';
 import { EntitlementProvider, useEntitlement } from './context/EntitlementContext';
 import { UpgradeDialog } from './components/Pro/UpgradeDialog';
 import { PRICING } from './config';
-import { Crown } from 'lucide-react';
+import { Crown, CircleHelp } from 'lucide-react';
+import { Tour } from './components/Tour/Tour';
+import { TOUR_STEPS, TOUR_KEY } from './components/Tour/steps';
+import type { TourStep } from './components/Tour/types';
 
 // Recharts is heavy — only load it when Analytics is opened.
 const Dashboard = lazy(() => import('./components/FocusChecker/Dashboard').then((m) => ({ default: m.Dashboard })));
@@ -220,6 +223,7 @@ function ProBadge({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
+      data-tour-item="pro"
       onClick={onClick}
       className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold ${ent.pro ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'clay-button text-amber-600 dark:text-amber-400'}`}
       title={ent.pro ? 'Your Pro plan' : 'See FocusChecker Pro'}
@@ -290,14 +294,51 @@ function AppContent({
   const [dailyGoal, setDailyGoal] = useState<number>(() => readNumber(DAILY_GOAL_KEY, 120));
   const [mobileDialView, setMobileDialView] = useState<'dial' | 'atmosphere'>('dial');
 
-  const navigate = useCallback((r: Route) => {
+  const navigate = useCallback((r: Route, opts?: { replace?: boolean }) => {
     const path = routePath(r);
-    if (window.location.pathname !== path) window.history.pushState(null, '', path);
+    if (window.location.pathname !== path) window.history[opts?.replace ? 'replaceState' : 'pushState'](null, '', path);
     setRoute(r);
     window.scrollTo({ top: 0 });
   }, []);
   const setActiveTab = useCallback((tab: AppTab) => navigate({ page: 'app', tab }), [navigate]);
   const navigatePath = useCallback((path: string) => navigate(parseRoute(path)), [navigate]);
+
+  // ---- Guided tour ----
+  const [tourOpen, setTourOpen] = useState(false);
+  const startTour = useCallback(() => {
+    toast.dismiss();
+    setTourOpen(true);
+  }, []);
+  const enterTourStep = useCallback((step: TourStep) => {
+    // Replace (not push) history entries so the Back button isn't flooded by the tour's tab changes.
+    if (step.tab) navigate({ page: 'app', tab: step.tab }, { replace: true });
+    if (step.mobileView) setMobileDialView(step.mobileView);
+  }, [navigate]);
+  const closeTour = useCallback((reason: 'done' | 'skip') => {
+    setTourOpen(false);
+    try { localStorage.setItem(TOUR_KEY, reason); } catch { /* ignore */ }
+    navigate({ page: 'app', tab: 'dial' }, { replace: true });
+    setMobileDialView('dial');
+  }, [navigate]);
+
+  // First visit to the app: a gentle, non-blocking invitation (shown once; the header Tour button is always there).
+  useEffect(() => {
+    if (route.page !== 'app') return;
+    let seen = true;
+    try { seen = localStorage.getItem(TOUR_KEY) !== null; } catch { /* storage blocked: don't nag */ }
+    if (seen || new URLSearchParams(window.location.search).has('upgraded')) return;
+    const t = window.setTimeout(() => {
+      try { localStorage.setItem(TOUR_KEY, 'invited'); } catch { /* ignore */ }
+      toast('New here? Take the 1-minute tour', {
+        description: 'See what every button does, with the real app highlighted.',
+        duration: 14000,
+        action: { label: 'Start tour', onClick: startTour },
+        cancel: { label: 'Not now', onClick: () => {} },
+      });
+    }, 1600);
+    return () => window.clearTimeout(t);
+  }, [route.page, startTour]);
+
 
   useEffect(() => {
     const onPop = () => setRoute(parseRoute(window.location.pathname));
@@ -412,6 +453,7 @@ function AppContent({
   return (
     <EntitlementProvider userId={isCloudUser && user ? user.id : null} openUpgrade={openUpgrade}>
     <HistorySync user={user} isCloudUser={isCloudUser} history={history} setHistory={setHistory} setSyncState={setSyncState} />
+    {route.page === 'app' && <Tour steps={TOUR_STEPS} open={tourOpen} onEnterStep={enterTourStep} onClose={closeTour} />}
     <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} user={user} onOpenAuth={openAuth} />
     <div className="min-h-screen clay-canvas font-sans text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <Toaster position="top-center" richColors theme={darkMode ? 'dark' : 'light'} />
@@ -453,6 +495,11 @@ function AppContent({
           onNavigate={navigatePath}
           onOpenAuth={openAuth}
           onUpgrade={PRICING.proAvailable ? openUpgrade : undefined}
+          onTakeTour={() => {
+            try { localStorage.setItem(TOUR_KEY, 'invited'); } catch { /* ignore */ }
+            navigate({ page: 'app', tab: 'dial' });
+            startTour();
+          }}
           darkMode={darkMode}
           onToggleDark={toggleDarkMode}
         />
@@ -483,7 +530,7 @@ function AppContent({
               </div>
 
               {/* Desktop Tabs Header Navigation */}
-              <nav className="hidden lg:flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
+              <nav data-tour="nav" className="hidden lg:flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
@@ -491,6 +538,7 @@ function AppContent({
                   return (
                     <button
                       key={item.id}
+                      data-tour-item={`tab-${item.id}`}
                       onClick={() => setActiveTab(item.id)}
                       aria-current={isActive ? 'page' : undefined}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
@@ -507,7 +555,17 @@ function AppContent({
               </nav>
 
               {/* Right Side Header Controls */}
-              <div className="flex items-center gap-2">
+              <div data-tour="header-actions" className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-tour-item="tour"
+                  onClick={startTour}
+                  className="h-11 sm:h-10 px-2.5 rounded-xl clay-button flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                  title="Take the guided tour"
+                  aria-label="Take the guided tour"
+                >
+                  <CircleHelp size={16} aria-hidden /> <span className="hidden md:inline">Tour</span>
+                </button>
                 
                 {/* Active Soundscape indicator & 1-Click Stop Pill (Visible on PC & Mobile!) */}
                 {activeSoundscape !== 'none' && (
@@ -529,6 +587,7 @@ function AppContent({
 
                 {/* Dark/Light mode toggle */}
                 <button
+                  data-tour-item="theme"
                   onClick={toggleDarkMode}
                   className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl clay-button flex items-center justify-center text-slate-600 dark:text-slate-300"
                   title="Toggle light / dark mode"
@@ -541,7 +600,7 @@ function AppContent({
 
                 {/* User profile / Login */}
                 {user ? (
-                  <div className="flex items-center gap-2">
+                  <div data-tour-item="account" className="flex items-center gap-2">
                     {isCloudUser && (
                       <span
                         className={`hidden sm:flex w-8 h-8 rounded-xl items-center justify-center ${syncState === 'error' ? 'text-amber-500' : 'text-emerald-500'}`}
@@ -573,6 +632,7 @@ function AppContent({
                   </div>
                 ) : (
                   <button
+                    data-tour-item="account"
                     onClick={() => openAuth('login')}
                     className="px-3.5 py-1.5 rounded-xl clay-tile-cyan text-xs font-semibold flex items-center gap-1.5 shadow-md"
                   >
@@ -628,7 +688,7 @@ function AppContent({
                       
                       {/* Left Column: Tactile Focus Dial */}
                       <div className={`lg:col-span-6 xl:col-span-6 ${mobileDialView === 'atmosphere' ? 'hidden lg:block' : 'block'}`}>
-                        <div className="max-w-md mx-auto">
+                        <div data-tour="dial" className="max-w-md mx-auto">
                           <TactileFocusDial
                             onOpenStressReset={() => setActiveTab('stress')}
                             activeSoundscape={activeSoundscape}
@@ -642,7 +702,7 @@ function AppContent({
 
                       {/* Right Column: Environment Hub (Weather, Circadian Lighting, 40Hz Waves) */}
                       <div className={`lg:col-span-6 xl:col-span-6 ${mobileDialView === 'dial' ? 'hidden lg:block' : 'block'}`}>
-                        <div className="max-w-md mx-auto">
+                        <div data-tour="hub" className="max-w-md mx-auto">
                           <EnvironmentHub
                             userName={user?.name || ''}
                             onOpenStressReset={() => setActiveTab('stress')}
@@ -663,17 +723,21 @@ function AppContent({
                 )}
 
                 {activeTab === 'stress' && (
+                  <div data-tour="stress-panel">
                   <StressReset
                     onComplete={handleStressResetComplete}
                     onClose={() => setActiveTab('dial')}
                   />
+                  </div>
                 )}
 
                 {activeTab === 'check' && (
+                  <div data-tour="check-panel">
                   <QuickCheck
                     onComplete={handleQuickCheckComplete}
                     onOpenStressReset={() => setActiveTab('stress')}
                   />
+                  </div>
                 )}
 
                 {activeTab === 'sound' && (
@@ -707,6 +771,7 @@ function AppContent({
                 )}
 
                 {activeTab === 'history' && (
+                  <div data-tour="history-panel">
                   <History
                     history={history}
                     onClearHistory={handleClearHistory}
@@ -714,6 +779,7 @@ function AppContent({
                     onCheckIn={() => setActiveTab('check')}
                     onBreathe={() => setActiveTab('stress')}
                   />
+                  </div>
                 )}
               </motion.div>
             </AnimatePresence>
@@ -721,7 +787,7 @@ function AppContent({
 
           {/* Mobile Bottom Floating Clay Dock */}
           <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
-            <nav className="clay-card p-1.5 grid grid-cols-6 gap-0.5 shadow-2xl backdrop-blur-2xl" aria-label="Main">
+            <nav data-tour="nav-mobile" className="clay-card p-1.5 grid grid-cols-6 gap-0.5 shadow-2xl backdrop-blur-2xl" aria-label="Main">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -729,6 +795,7 @@ function AppContent({
                 return (
                   <button
                     key={item.id}
+                    data-tour-item={`tab-${item.id}`}
                     onClick={() => setActiveTab(item.id)}
                     aria-current={isActive ? 'page' : undefined}
                     className={`min-w-0 min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 rounded-2xl transition-colors ${

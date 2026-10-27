@@ -30,6 +30,8 @@ interface LandingPageProps {
   onOpenAuth: (mode: 'login' | 'register') => void;
   /** Set when Pro is purchasable: the Pro button opens the upgrade dialog instead of the waitlist. */
   onUpgrade?: () => void;
+  /** Opens the app and starts the guided tour. */
+  onTakeTour?: () => void;
   darkMode?: boolean;
   onToggleDark?: () => void;
 }
@@ -162,6 +164,7 @@ export function LandingPage({
   onNavigate,
   onOpenAuth,
   onUpgrade,
+  onTakeTour,
   darkMode,
   onToggleDark,
 }: LandingPageProps) {
@@ -258,6 +261,12 @@ export function LandingPage({
                   Try the 2-min breathing reset
                 </a>
               </div>
+              {onTakeTour && (
+                <button type="button" onClick={onTakeTour} className="lp-btn lp-btn-ghost self-start !min-h-11 !px-5 !text-base" data-testid="landing-tour">
+                  <Compass size={17} aria-hidden />
+                  Take the 1-minute guided tour
+                </button>
+              )}
               <ul className="flex flex-wrap gap-x-6 gap-y-2 text-[15px] font-medium" style={{ color: 'var(--on-ink-muted)' }}>
                 <li className="flex items-center gap-2"><CheckCircle2 size={16} style={{ color: 'var(--mint)' }} />No account needed</li>
                 <li className="flex items-center gap-2"><ShieldCheck size={16} style={{ color: 'var(--mint)' }} />Private by default</li>

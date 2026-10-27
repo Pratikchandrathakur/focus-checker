@@ -88,7 +88,7 @@ export function Dashboard({ history: allHistory, onOpenQuickCheck, onOpenStressR
 
   if (allHistory.length === 0) {
     return (
-      <div className="w-full max-w-2xl mx-auto clay-card p-8 md:p-10 text-center space-y-4">
+      <div data-tour="analytics-empty" className="w-full max-w-2xl mx-auto clay-card p-8 md:p-10 text-center space-y-4">
         <div className="w-12 h-12 rounded-2xl clay-tile-cyan flex items-center justify-center mx-auto">
           <Activity size={22} className="text-white" />
         </div>
@@ -114,7 +114,7 @@ export function Dashboard({ history: allHistory, onOpenQuickCheck, onOpenStressR
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-3.5 sm:space-y-4">
-      <div role="group" aria-label="Analytics range" className="flex flex-wrap gap-1.5">
+      <div data-tour="analytics-range" role="group" aria-label="Analytics range" className="flex flex-wrap gap-1.5">
         {RANGES.map((r) => {
           const allowed = historyRangeAllowed(ent, r.days);
           const on = r.days === activeRange;

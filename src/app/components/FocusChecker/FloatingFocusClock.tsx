@@ -265,6 +265,7 @@ export function FloatingFocusClock({
             touchAction: 'none',
           }}
           className="select-none will-change-transform"
+          data-tour="floating-clock"
         >
           {pipWindow ? (
             /* When PiP is open in another OS window, show docked shortcut pill here */

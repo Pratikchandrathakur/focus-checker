@@ -143,7 +143,7 @@ export function Soundscapes({ activeSoundscape, onSelectPreset, userId = null }:
         </div>
 
         {/* Soundscape Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        <div data-tour="sound-grid" className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           {presets.map((p) => {
             const Icon = p.icon;
             const isPlaying = activeSoundscape === p.id;
@@ -185,11 +185,13 @@ export function Soundscapes({ activeSoundscape, onSelectPreset, userId = null }:
           })}
         </div>
 
+        <div data-tour="mixer">
         {ent.pro ? (
           <MixBuilder userId={userId} masterVolume={volume} onPlay={() => onSelectPreset('mix')} />
         ) : (
           <ProLock title="Custom sound mixes" body="Layer up to six sounds, set each volume and save your own mixes to every device." onUpgrade={openUpgrade} />
         )}
+        </div>
 
         {/* Info callout */}
         <div className="p-2.5 rounded-xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 text-xs text-sky-900 dark:text-sky-200 leading-relaxed">
