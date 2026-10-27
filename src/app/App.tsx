@@ -507,23 +507,23 @@ function AppContent({
         <div className="flex flex-col min-h-screen pb-44 lg:pb-3">
           {/* Top Header */}
           <header className="sticky top-0 z-40 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-slate-800/60 px-4 md:px-8 py-1.5 sm:py-2 transition-all">
-            <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
               
               {/* Brand and Landing shortcut */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
                 <button
                   onClick={() => navigate({ page: 'landing' })}
-                  className="cursor-pointer rounded-[11px] shadow-md"
+                  className="cursor-pointer rounded-[11px] shadow-md shrink-0 transition-transform hover:scale-105 active:scale-95"
                   title="FocusChecker home"
                   aria-label="FocusChecker home"
                 >
                   <LogoMark size={36} />
                 </button>
-                <div>
-                  <h1 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+                <div className="flex flex-col justify-center shrink-0">
+                  <h1 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight whitespace-nowrap">
                     <Wordmark />
                   </h1>
-                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap leading-none mt-0.5">
                     Focus · Breathe · Learn
                   </span>
                 </div>
